@@ -37,6 +37,7 @@ booster_level = 0      # 0=OFF, 1=LO, 2=MED, 3=HI
 active_boost_level = 0 # The level currently applied to graph zoom
 CALIB_PIVOT_TA = 2.0
 active_event_label = ""   # The TA value where Sensitivity scaling is neutral (1.0x)
+latest_d_ta = 0.0 # [NEW] Global for CSV Logging
 last_stable_window = 5.0  # [NEW] Track last valid window for motion freeze
 gsr_capture_queue = collections.deque(maxlen=100)
 # [NEW] Manual Blit Globals
@@ -225,13 +226,16 @@ class GSRReader(threading.Thread):
                                   if note: active_event_label = ""
                                   
                                   is_motion = 1 if time.time() < motion_lock_expiry else 0
-                                  
                                   # Calc Elapsed
                                   elapsed = 0.0
                                   if recording_start_time:
                                        elapsed = (datetime.now() - recording_start_time).total_seconds()
+                                  
+                                  # Grab Global Delta TA (Calculated in Main Thread)
+                                  # Note: Might be slightly delayed 60Hz vs 60Hz but adequate.
+                                  d_ta_log = latest_d_ta if 'latest_d_ta' in globals() else 0.0
                                        
-                                  writer_gsr.writerow([ts_now, f"{elapsed:.3f}", f"{self.current_ta:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", active_boost_level, note, current_pattern])
+                                  writer_gsr.writerow([ts_now, f"{elapsed:.3f}", f"{self.current_ta:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", active_boost_level, note, current_pattern, f"{d_ta_log:.5f}"])
                              
                          except Exception: pass
 
@@ -1165,15 +1169,16 @@ if __name__ == "__main__":
              # Initialize GSR CSV
              f_gsr = open(fname_gsr, 'w', newline='')
              writer_gsr = csv.writer(f_gsr)
-             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Boost", "Notes", "Pattern"])
+             # [FIX] Added Delta_TA
+             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Boost", "Notes", "Pattern", "Delta_TA"])
              
              # (Trend CSV Removed)
 
              # [NEW] Initialize HRM CSV
              f_hrm = open(fname_hrm, 'w', newline='')
              writer_hrm = csv.writer(f_hrm)
-             # Columns: Timestamp, Elapsed, HR_BPM, RMSSD_MS, Raw_RR_MS, State, Trend, Status, Raw_Packet_Hex, Z_HR, Z_HRV, Quadrant
-             writer_hrm.writerow(["Timestamp", "Elapsed", "HR_BPM", "RMSSD_MS", "Raw_RR_MS", "State", "Trend", "Status", "Raw_Packet_Hex", "Z_HR", "Z_HRV", "Quadrant"])
+             # Columns: Timestamp, Elapsed, HR_BPM, RMSSD_MS, Raw_RR_MS, State, Trend, Status, Raw_Packet_Hex, Delta_HR, Delta_HRV, Quadrant
+             writer_hrm.writerow(["Timestamp", "Elapsed", "HR_BPM", "RMSSD_MS", "Raw_RR_MS", "State", "Trend", "Status", "Raw_Packet_Hex", "Delta_HR", "Delta_HRV", "Quadrant"])
  
              is_recording = True 
              # [NEW] Streaming Audio
@@ -1641,6 +1646,10 @@ if __name__ == "__main__":
              prev_ta = sum(list(grid_hist_ta)[0:10]) / 10.0
              d_ta = curr_ta - prev_ta
              
+             # [NEW] Update Global for CSV
+             global latest_d_ta
+             latest_d_ta = d_ta
+             
              # HRV
              curr_hrv = sum(list(grid_hist_hrv)[-10:]) / 10.0
              prev_hrv = sum(list(grid_hist_hrv)[0:10]) / 10.0 
@@ -1711,15 +1720,19 @@ if __name__ == "__main__":
                         # Timestamp, HR_BPM, RMSSD_MS, Raw_RR_MS, State, Trend, Status, Raw_Packet_Hex
                         # Use Analyzer Output for State and Trend
                         log_state = f"{s_state}:{s_intens}"
-                        z_h_log = analyzer_res.get('z_hr', '0.000')
-                        z_v_log = analyzer_res.get('z_hrv', '0.000')
+                        
+                        # [FIX] Use Defined Deltas (d_hr, d_hrv) instead of Z
+                        # Use variables from current scope (calculated above in Main Loop)
+                        # Ensure d_hr/d_hrv are defined (initialized to 0.0 if loop skipped)
+                        # d_hr = 0.0 (Init above), d_hrv (Init above)
+                        
                         quad_log = analyzer_res.get('quadrant', 0)
                         
                         elapsed = 0.0
                         if recording_start_time:
                              elapsed = (datetime.now() - recording_start_time).total_seconds()
                         
-                        writer_hrm.writerow([ts_hrm, f"{elapsed:.3f}", latest_hr, int(latest_hrv), raw_rr, log_state, s_trend, h_stat, raw_hex, z_h_log, z_v_log, quad_log])
+                        writer_hrm.writerow([ts_hrm, f"{elapsed:.3f}", latest_hr, int(latest_hrv), raw_rr, log_state, s_trend, h_stat, raw_hex, f"{d_hr:.3f}", f"{d_hrv:.3f}", quad_log])
                 except Exception: pass
 
         else:
