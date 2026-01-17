@@ -60,7 +60,8 @@ class AntHrvSensor:
     def get_data(self):
         """Returns merged data from both channels"""
         # Safety check on HR stream timeout
-        if (time.time() - self.last_hr_data_time) > 4.0 and self.status == "Active":
+        # Safety check on HR stream timeout (Extended to 12s for slow registry)
+        if (time.time() - self.last_hr_data_time) > 12.0 and self.status == "Active":
             self.status = "Signal Lost"
             self.bpm = 0
 

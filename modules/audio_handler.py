@@ -200,8 +200,6 @@ class AudioHandler:
                 self.ui_cb('mic_name_text', self.current_mic_name)
                 # Parse shorter name for status bar
                 short_name = self.current_mic_name
-                if "(" in short_name: short_name = short_name.split("(")[0].strip()
-                if len(short_name) > 20: short_name = short_name[:20] + "..."
                 self.ui_cb('status_text', f"AUDIO: {short_name}")
                      
             except Exception as e: self.log(f"Dev Check Err: {e}")
