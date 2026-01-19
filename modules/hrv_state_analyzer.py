@@ -82,59 +82,53 @@ class HRVStateAnalyzer:
         if len(self.hr_history) < 10:
              return self._empty_result(status="Calibrating")
 
-        # Calculate Z-Scores based on recent history (Self-Referential)
+        # Calculate Deviation from Mean (Baseline)
         hr_mean = np.mean(self.hr_history)
-        hr_std = np.std(self.hr_history)
         hrv_mean = np.mean(self.hrv_history)
-        hrv_std = np.std(self.hrv_history)
         
-        # Enforce minimum deviation to prevent noise amplification
-        # [Adjusted] HR: 3.0 BPM, HRV: 5.0 ms (Lowered from 8.0 to restore movement)
-        hr_std = max(hr_std, 3.0)
-        hrv_std = max(hrv_std, 5.0)
+        # Deviation
+        dev_hr = hr - hr_mean
+        dev_hrv = hrv - hrv_mean
         
-        raw_z_hr = (hr - hr_mean) / hr_std
-        raw_z_hrv = (hrv - hrv_mean) / hrv_std
+        # [NEW] Smooth Deviations (EMA)
+        alpha_hr = 0.1   
+        alpha_hrv = 0.08 
         
-        # [NEW] Smooth Z-Scores (EMA)
-        # alpha = 0.08 (Medium-Slow), was 0.05 (Too Slow)
-        alpha_hr = 0.1   # HR is smoother naturally
-        alpha_hrv = 0.08 # Increased alpha to restore responsiveness
+        if not hasattr(self, 'smooth_dev_hr'): self.smooth_dev_hr = 0.0
+        if not hasattr(self, 'smooth_dev_hrv'): self.smooth_dev_hrv = 0.0
         
-        if not hasattr(self, 'smooth_z_hr'): self.smooth_z_hr = 0.0
-        if not hasattr(self, 'smooth_z_hrv'): self.smooth_z_hrv = 0.0
+        self.smooth_dev_hr = alpha_hr * dev_hr + (1 - alpha_hr) * self.smooth_dev_hr
+        self.smooth_dev_hrv = alpha_hrv * dev_hrv + (1 - alpha_hrv) * self.smooth_dev_hrv
         
-        self.smooth_z_hr = alpha_hr * raw_z_hr + (1 - alpha_hr) * self.smooth_z_hr
-        self.smooth_z_hrv = alpha_hrv * raw_z_hrv + (1 - alpha_hrv) * self.smooth_z_hrv
-        
-        z_hr = self.smooth_z_hr
-        z_hrv = self.smooth_z_hrv
+        # Use Smoothed Values for State
+        val_hr = self.smooth_dev_hr
+        val_hrv = self.smooth_dev_hrv
         
         # Determine Quadrant
         # Axis 1 (Y): HR -> High (>0) vs Low (<0)
         # Axis 2 (X): HRV -> High (>0) vs Low (<0)
         
-        # Top-Left (1): HR High, HRV Low -> z_hr > 0, z_hrv < 0
-        # Top-Right (2): HR High, HRV High -> z_hr > 0, z_hrv > 0
-        # Bottom-Right (3): HR Low, HRV High -> z_hr < 0, z_hrv > 0
-        # Bottom-Left (4): HR Low, HRV Low -> z_hr < 0, z_hrv < 0
+        # Top-Left (1): HR High, HRV Low
+        # Top-Right (2): HR High, HRV High
+        # Bottom-Right (3): HR Low, HRV High
+        # Bottom-Left (4): HR Low, HRV Low
         
         quad = 0
-        if z_hr >= 0 and z_hrv < 0:
+        if val_hr >= 0 and val_hrv < 0:
             quad = 1 # Stress
-        elif z_hr >= 0 and z_hrv >= 0:
+        elif val_hr >= 0 and val_hrv >= 0:
             quad = 2 # Flow
-        elif z_hr < 0 and z_hrv >= 0:
+        elif val_hr < 0 and val_hrv >= 0:
             quad = 3 # Recovery
         else:
             quad = 4 # Withdrawal
             
-        # Determine Intensity (Max Z-score magnitude)
-        max_z = max(abs(z_hr), abs(z_hrv))
+        # Determine Intensity (Magnitude of Deviation)
+        # Thresholds: HR +/- 5 BPM, HRV +/- 10ms (Approximation of significant change)
         intensity = "Low"
-        if max_z > 2.0:
+        if abs(val_hr) > 5.0 or abs(val_hrv) > 10.0:
             intensity = "High"
-        elif max_z > 1.0:
+        elif abs(val_hr) > 2.0 or abs(val_hrv) > 4.0:
             intensity = "Medium"
             
         # Determine Trend
@@ -169,8 +163,6 @@ class HRVStateAnalyzer:
             'intensity': intensity,
             'trend': trend,
             'quadrant': quad,
-            'z_hr': f"{z_hr:.3f}", # String for CSV friendly
-            'z_hrv': f"{z_hrv:.3f}",
             'status': "Active"
         }
 
