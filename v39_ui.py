@@ -273,6 +273,7 @@ class GSRReader(threading.Thread):
 def log_msg(msg):
     timestamp = datetime.now().strftime("%H:%M:%S")
     clean_msg = str(msg).strip()
+    print(f"[{timestamp}] {clean_msg}")
     log_messages.append(f"[{timestamp}] {clean_msg}")
     
     # Update UI directly if available
@@ -398,6 +399,10 @@ if __name__ == "__main__":
     audio_handler = AudioHandler(log_msg, update_audio_ui)
     
 
+
+    
+    # [FIX] Load Config EARLY so we know which Mic to probe, and correct GSR defaults
+    load_config()
 
     # [FIX] Probe Audio Immediately (Now that Handler + Config are ready)
     print("[Startup] Probing Audio Device...")
@@ -596,7 +601,8 @@ if __name__ == "__main__":
         except Exception: pass
 
     # [FIX] Load Config NOW that UI is ready
-    load_config()
+    # [FIX] Config loaded early (Line 401)
+    # load_config()
     update_boost_ui() # Apply Loaded Settings
     
     def set_boost(lvl):
@@ -978,13 +984,13 @@ if __name__ == "__main__":
     ax_count_bg.set_xticks([]); ax_count_bg.set_yticks([])
     
     # Background Patch (Dynamic Color)
-    bg_count_rect = plt.Rectangle((0,0), 1, 1, transform=ax_count_bg.transAxes, color='#ffcccc', ec='black', lw=2, clip_on=False)
+    bg_count_rect = plt.Rectangle((0,0), 1, 1, transform=ax_count_bg.transAxes, color='#ccffcc', ec='black', lw=2, clip_on=False)
     bg_count_rect.set_zorder(0) # Patch at bottom of Axes
     ax_count_bg.add_patch(bg_count_rect)
     ui_refs['count_bg_rect'] = bg_count_rect
     
     # Text
-    txt_count_val = ax_count_bg.text(0.5, 0.70, "TA Counter: 0.00", ha='center', va='center', fontsize=16, fontweight='bold', color='#550000')
+    txt_count_val = ax_count_bg.text(0.5, 0.70, "TA Counter: 0.00", ha='center', va='center', fontsize=16, fontweight='bold', color='#005500')
     txt_count_val.set_zorder(10)
     txt_count_val.set_animated(True)
     
@@ -1018,8 +1024,8 @@ if __name__ == "__main__":
         counting_active = not counting_active
         
         # Colors
-        c_bg = '#ccffcc' if counting_active else '#ffcccc'
-        c_fg = '#005500' if counting_active else '#550000'
+        c_bg = '#ffcccc' if counting_active else '#ccffcc'
+        c_fg = '#550000' if counting_active else '#005500'
         bg_count_rect.set_facecolor(c_bg)
         txt_count_val.set_color(c_fg)
         
