@@ -98,10 +98,10 @@ class GSRPatterns:
              
              # If "Sudden" (Velocity > 0.15 in/sec) -> It's a Read (Short/Long)
              if trend_vel > 0.15:
-                 # [MOD] Filter tiny fast drops (Noise/Glitches < 0.2)
-                 if mag < 0.2: return "FALL" 
-                 elif mag < self.THRESH_FALL_LARGE: return "SHORT FALL"
-                 else: return "LONG FALL"
+                # [MOD] Filter tiny fast drops (Noise/Glitches < 0.2)
+                if mag < 0.2: return "TICK" 
+                elif mag < self.THRESH_FALL_LARGE: return "SHORT FALL"
+                else: return "LONG FALL"
              else:
                  return "FALL" # Steady Drop
         
