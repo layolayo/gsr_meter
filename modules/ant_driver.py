@@ -3,6 +3,9 @@ import struct
 import collections
 import math
 import time
+import usb.core
+import usb.util
+import gc
 from openant.easy.node import Node
 from openant.easy.channel import Channel
 from openant.devices import ANTPLUS_NETWORK_KEY
@@ -41,8 +44,40 @@ class AntHrvSensor:
         self.last_beat_count = None
         self.last_hr_data_time = time.time()
 
+    def _release_kernel_driver(self):
+        try:
+            # ANT+ USB Stick Vendor/Product IDs
+            # 0x0fcf:0x1008 (Garmin), 0x0fcf:0x1009 (Dynastream)
+            ids = [(0x0fcf, 0x1008), (0x0fcf, 0x1009)]
+            
+            found = False
+            for vid, pid in ids:
+                dev = usb.core.find(idVendor=vid, idProduct=pid)
+                if dev:
+                    found = True
+                    if dev.is_kernel_driver_active(0):
+                        dev.detach_kernel_driver(0)
+                        return True
+            return False
+        except Exception:
+            return False
+
     def start(self):
         if self.running: return
+        
+        try:
+            # Pre-emptively clear kernel driver lock if present
+            self._release_kernel_driver()
+            
+            # Initialize Node synchronously
+            self.node = Node()
+            self.node.set_network_key(0, ANTPLUS_NETWORK_KEY)
+            
+        except Exception as e:
+            # IMMEDIATE CLEANUP
+            self.stop() 
+            raise e 
+
         self.running = True
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
@@ -51,17 +86,30 @@ class AntHrvSensor:
         self.running = False
         if self.node:
             try:
+                # Explicitly close ANY open channels first
+                if self.channel_hr: 
+                     try: self.channel_hr.close(); 
+                     except: pass
+                
+                # Stop the node which handles driver cleanup
                 self.node.stop()
-            except:
+            except Exception:
                 pass
+            finally:
+                self.node = None # Dereference to force GC
+                
         if self.thread and self.thread.is_alive():
-            self.thread.join(timeout=2.0)
+            try:
+                self.thread.join(timeout=1.0)
+            except: pass
+            
+        # Force Garbage Collection to release USB handles
+        gc.collect()
 
     def get_data(self):
         """Returns merged data from both channels"""
         # Safety check on HR stream timeout
-        # Safety check on HR stream timeout (Extended to 12s for slow registry)
-        if (time.time() - self.last_hr_data_time) > 12.0 and self.status == "Active":
+        if (time.time() - self.last_hr_data_time) > 4.0 and self.status == "Active":
             self.status = "Signal Lost"
             self.bpm = 0
 
@@ -170,9 +218,8 @@ class AntHrvSensor:
 
     def _run_loop(self):
         try:
-            self.node = Node()
-            self.node.set_network_key(0, ANTPLUS_NETWORK_KEY)
-
+            # self.node check is done in start()
+            
             # --- CHANNEL 0: HEART RATE (Wildcard) ---
             self.channel_hr = self.node.new_channel(Channel.Type.BIDIRECTIONAL_RECEIVE)
             self.channel_hr.on_broadcast_data = self._on_hr_data
