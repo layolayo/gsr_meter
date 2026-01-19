@@ -80,13 +80,13 @@ def plot_session(df_gsr, df_hrm, save_path):
                 # Skip Motion Lock logs if frequent, but grep showed they are rare/important
                 
                 # Vertical Line
-                ax1.axvline(x=row['Seconds'], color='black', linestyle='--', alpha=0.5)
+                # ax1.axvline(x=row['Seconds'], color='black', linestyle='--', alpha=0.5)
                 
                 # Label at top
                 # Use transAxes for y-position (top of chart)
-                ax1.text(row['Seconds'], 1.05, note, 
-                         transform=ax1.get_xaxis_transform(),
-                         rotation=45, ha='left', fontsize=9, color='black', weight='bold')
+                # ax1.text(row['Seconds'], 1.05, note, 
+                #          transform=ax1.get_xaxis_transform(),
+                #          rotation=45, ha='left', fontsize=9, color='black', weight='bold')
 
         # Highlight Motion (Keep as scatter on line)
         if 'Motion' in df_gsr.columns:
@@ -131,10 +131,11 @@ def plot_session(df_gsr, df_hrm, save_path):
             changes = hrm_sorted[hrm_sorted['Quadrant'] != hrm_sorted['Quadrant'].shift()]
             
             q_colors = {
-                'Rest': 'whitesmoke',
-                'Focus': 'lightcyan',
-                'Calm': 'lavender',
-                'Engage': 'mistyrose',
+                'DISCONNECT': 'moccasin',
+                'RESISTANCE': 'lightsalmon',
+                'OVERWHELM': 'gainsboro',
+                'INTEGRATION': 'honeydew',
+                'BALANCED': 'white',
                 'nan': 'white'
             }
             
@@ -145,7 +146,7 @@ def plot_session(df_gsr, df_hrm, save_path):
                 t = row['Seconds']
                 q = row['Quadrant']
                 c = q_colors.get(prev_q, 'white')
-                if 'Rest' in prev_q: c = 'whitesmoke' # Fuzzy match
+                if 'DISCONNECT' in prev_q: c = 'moccasin' # Fuzzy match
                 
                 ax2.axvspan(prev_time, t, color=c, alpha=0.5)
                 prev_time = t
