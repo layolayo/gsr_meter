@@ -1,8 +1,11 @@
-Session_Data/
-pdfs/
-__pycache__/
+# IDE and Environment
 .idea/
 .venv/
+
+# Python compiled files (Global)
+__pycache__/
 *.pyc
-modules/__pycache__/
-modules/__pycache__/*.pyc
+
+# Project specific data
+Session_Data/
+pdfs/
