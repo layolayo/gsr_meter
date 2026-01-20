@@ -1481,10 +1481,10 @@ if __name__ == "__main__":
     ui_refs['btn_manual'].label.set_animated(True)
     ui_refs['btn_manual'].on_clicked(show_manual_popup)
 
-    # [NEW] Viewer Button (Left of Manual)
-    # Manual: x=0.835, w=0.13. 
-    # Viewer: x=0.695, w=0.13
-    r_view = [0.695, 0.20, 0.13, 0.04]
+    # [NEW] Viewer Button (Below Manual)
+    # Manual: x=0.835, y=0.20, h=0.04
+    # Viewer: x=0.835, y=0.155 (Gap 0.005), w=0.13, h=0.04
+    r_view = [0.835, 0.155, 0.13, 0.04]
     ax_view = reg_ax(r_view, main_view_axes)
     ui_refs['btn_viewer'] = Button(ax_view, "Viewer", color='#552255', hovercolor='#773377')
     ui_refs['btn_viewer'].label.set_color('white')
@@ -2496,7 +2496,7 @@ if __name__ == "__main__":
                 ax_overlay.draw_artist(ui_refs['txt_motion_overlay'])
 
             # [CRITICAL] Draw Buttons Manually so they overlay properly
-            for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual']:
+            for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer']:
                  if b_key in ui_refs and ui_refs[b_key].ax.get_visible():
                       b = ui_refs[b_key]
                       b.ax.draw_artist(b.ax.patch) # Background (Normal/Hover)
@@ -2520,6 +2520,7 @@ if __name__ == "__main__":
             if 'btn_manual' in ui_refs and 'btn_to_settings' in ui_refs and ui_refs['btn_to_settings'].ax.get_visible():
                 # [FIX] Blit if Main View is active (checked via proxy)
                 fig.canvas.blit(ui_refs['btn_manual'].ax.bbox)
+                if 'btn_viewer' in ui_refs: fig.canvas.blit(ui_refs['btn_viewer'].ax.bbox)
             if 'btn_back' in ui_refs and ui_refs['btn_back'].ax.get_visible(): 
                 fig.canvas.blit(ui_refs['btn_back'].ax.bbox)
             
