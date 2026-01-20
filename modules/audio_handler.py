@@ -1,6 +1,7 @@
 import sounddevice as sd
 import numpy as np
 import scipy.io.wavfile as wav
+import soundfile as sf
 import tkinter as tk
 from tkinter import ttk
 import time
@@ -32,7 +33,14 @@ class AudioHandler:
         
         # Writer State
         self.writer_thread = None
+        # Writer State
+        self.writer_thread = None
         self.writer_running = False
+
+        # Playback State
+        self.playback_data = None
+        self.playback_fs = 44100
+        self.is_playing_playback = False
         
     def log(self, msg):
         if self.log_cb: self.log_cb(msg)
@@ -109,7 +117,7 @@ class AudioHandler:
                                  try:
                                      # Force OS write to prevent buffer build-up (CPU Spike)
                                      f.flush()
-                                     os.fsync(f.fileno())
+                                     # os.fsync(f.fileno()) # [FIX] Removed blocking fsync
                                      last_flush = now
                                  except Exception as e: pass
 
@@ -127,6 +135,53 @@ class AudioHandler:
                             break
         except Exception as e:
             self.log(f"WAV File Error: {e}") 
+
+    # --- Playback Logic (From v23) ---
+    def load_for_playback(self, filename):
+        """Loads audio file into memory for playback"""
+        if not os.path.exists(filename):
+            self.log(f"File not found: {filename}")
+            return False
+            
+        try:
+            data, fs = sf.read(filename, dtype='float32')
+            self.playback_data = data
+            self.playback_fs = fs
+            
+            # Handle Duration
+            if len(data.shape) > 1:
+                duration = data.shape[0] / fs
+            else:
+                duration = len(data) / fs
+                
+            self.log(f"Loaded Playback Audio: {filename} ({duration:.1f}s)")
+            return True
+        except Exception as e:
+            self.log(f"Load Playback Error: {e}")
+            return False
+
+    def start_playback(self, offset=0.0):
+        if self.playback_data is None: return
+        
+        try:
+            # Stop any current
+            sd.stop()
+            
+            start_frame = int(offset * self.playback_fs)
+            if start_frame < len(self.playback_data):
+                sd.play(self.playback_data[start_frame:], self.playback_fs)
+                self.is_playing_playback = True
+                self.log(f"Playback Started from {offset:.1f}s")
+            else:
+                self.log("Playback Offset out of range")
+                
+        except Exception as e:
+            self.log(f"Playback Error: {e}")
+
+    def stop_playback(self):
+        sd.stop()
+        self.is_playing_playback = False
+        self.log("Playback Stopped") 
 
     def sync_audio_stream(self, target_view='main'):
         """Manages Stream Lifecycle"""
@@ -233,17 +288,21 @@ class AudioHandler:
             for sr in rates_to_try:
                 try:
                     self.log(f"Trying SR: {sr if sr else 'Auto'}...")
+                    # [FIX] Use blocksize=0 (Auto) for best stability
                     self.audio_stream = sd.InputStream(
                         samplerate=sr, channels=1, device=self.selected_device_idx, 
-                        callback=self.audio_callback, blocksize=1024
+                        callback=self.audio_callback, blocksize=0
                     )
                     self.audio_stream.start()
                     stream_created = True
-                    actual_rate = sr if sr else self.audio_stream.samplerate
+                    
+                    # [FIX] ALWAYS read the actual rate from the stream.
+                    # Never trust the requested 'sr', as PortAudio might select a different native rate.
+                    actual_rate = self.audio_stream.samplerate
                     self.log(f"Audio Stream: ON ({actual_rate} Hz)")
                     
                     self.current_mic_rate = int(actual_rate)
-                    break
+                    break 
                 except Exception as e:
                     self.log(f"SR {sr} Fail: {e}")
                     if self.audio_stream: 

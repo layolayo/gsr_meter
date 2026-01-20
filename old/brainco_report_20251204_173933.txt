@@ -1,0 +1,22 @@
+2025-12-04 17:39:33,529 | === BRAINCO DIAGNOSTIC TOOL v1.1 ===
+2025-12-04 17:39:33,529 | Target Address: 58:94:b2:00:b4:35
+2025-12-04 17:39:33,529 | 
+[PHASE 1] CONNECTING...
+2025-12-04 17:39:35,010 |   -> Connected in 1.48 seconds.
+2025-12-04 17:39:35,010 | 
+[PHASE 2] DEVICE IDENTITY
+2025-12-04 17:39:35,158 |   -> Manufacturer: BrainCo
+2025-12-04 17:39:35,293 |   -> Model Number: FC11
+2025-12-04 17:39:35,382 |   -> Serial Number: BCFC11344J2000063
+2025-12-04 17:39:35,473 |   -> Firmware Ver: 1.1.2
+2025-12-04 17:39:35,562 |   -> Hardware Ver: 1.0.0
+2025-12-04 17:39:35,562 | 
+[PHASE 3] AUTHENTICATION
+2025-12-04 17:39:35,562 |   -> Sending Magic Bytes...
+2025-12-04 17:39:35,615 |   -> Waiting 1.5s for Unlock...
+2025-12-04 17:39:37,116 | 
+[PHASE 4] BATTERY STATUS
+2025-12-04 17:39:37,116 |   -> Battery Read Failed: Service Discovery has not been performed yet
+2025-12-04 17:39:37,116 | 
+[PHASE 5] STREAM ANALYSIS
+2025-12-04 17:39:37,116 | FATAL ERROR: Not connected

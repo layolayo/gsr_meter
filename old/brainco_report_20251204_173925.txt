@@ -1,0 +1,16 @@
+2025-12-04 17:39:25,389 | === BRAINCO DIAGNOSTIC TOOL v1.1 ===
+2025-12-04 17:39:25,389 | Target Address: 58:94:b2:00:b4:35
+2025-12-04 17:39:25,389 | 
+[PHASE 1] CONNECTING...
+2025-12-04 17:39:26,728 |   -> Connected in 1.34 seconds.
+2025-12-04 17:39:26,728 | 
+[PHASE 2] DEVICE IDENTITY
+2025-12-04 17:39:26,878 |   -> Manufacturer: BrainCo
+2025-12-04 17:39:26,967 |   -> Model Number: FC11
+2025-12-04 17:39:27,057 |   -> Serial Number: BCFC11344J2000063
+2025-12-04 17:39:27,147 |   -> Firmware Ver: 1.1.2
+2025-12-04 17:39:27,237 |   -> Hardware Ver: 1.0.0
+2025-12-04 17:39:27,237 | 
+[PHASE 3] AUTHENTICATION
+2025-12-04 17:39:27,237 |   -> Sending Magic Bytes...
+2025-12-04 17:39:27,288 |   -> Waiting 1.5s for Unlock...

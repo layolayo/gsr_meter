@@ -1,0 +1,19 @@
+{
+    "mic_name": "sof-hda-dsp: - (hw:0,6)",
+    "mic_gain": 10.0,
+    "mic_rate": 48000,
+    "bt_address": null,
+    "bt_name": "Unknown",
+    "gui_theme": "Light",
+    "gsr_center": 3.1575679293561967,
+    "gsr_base": 0.19203329479421058,
+    "booster_idx": 2,
+    "graph_visibility": {
+        "Delta": false,
+        "Theta": false,
+        "Alpha": false,
+        "Beta": false,
+        "Gamma": false,
+        "GSR": true
+    }
+}

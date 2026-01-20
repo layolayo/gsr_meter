@@ -48,8 +48,14 @@ def load_data(session_path):
                  df_hrm['Seconds'] = (df_hrm['dt'] - start_time).dt.total_seconds()
                  
                  # Convert numeric cols
-                 df_hrm['HR_BPM'] = pd.to_numeric(df_hrm['HR_BPM'])
-                 df_hrm['Z_HRV'] = pd.to_numeric(df_hrm['Z_HRV'], errors='coerce')
+                 df_hrm['HR_BPM'] = pd.to_numeric(df_hrm['HR_BPM'], errors='coerce')
+                 
+                 # [FIX] Switched from Z_HRV to Deltas
+                 if 'Delta_HRV' in df_hrm.columns:
+                     df_hrm['Delta_HRV'] = pd.to_numeric(df_hrm['Delta_HRV'], errors='coerce')
+                 if 'Delta_HR' in df_hrm.columns:
+                     df_hrm['Delta_HR'] = pd.to_numeric(df_hrm['Delta_HR'], errors='coerce')
+                     
                  if 'RMSSD_MS' in df_hrm.columns:
                     df_hrm['RMSSD_MS'] = pd.to_numeric(df_hrm['RMSSD_MS'], errors='coerce')
         except Exception as e:

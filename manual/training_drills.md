@@ -9,11 +9,49 @@ These practice drills are modernized versions of the original 1965 E-Meter drill
 
 **Commands**:
 Perform the following actions in sequence until fluid:
-1.  **Locate** the Sensitivity Controls (Top Right).
-2.  **Click** the `+` button to increase Sensitivity.
-3.  **Click** the `-` button to decrease Sensitivity.
-4.  **Locate** the Booster Buttons (`OFF`, `L`, `M`, `H`).
-5.  **Locate** the "Calibrate" button.
+
+### 1. Sensitivity
+**Locate**: Sensitivity Controls (Top Right, `+` and `-` buttons).
+**Action**:
+1.  **Click** `+` to increase Sensitivity (Zoom In). The graph will move faster for small changes.
+2.  **Click** `-` to decrease Sensitivity (Zoom Out). The graph will smoothen out.
+**Goal**: Understand that Sensitivity changes the *scale* of the graph, not the data itself.
+
+### 2. Auto-Boost
+**Locate**: Booster Buttons (`OFF`, `L`, `M`, `H`).
+**Action**:
+1.  **Click** `L` (Low Boost). Observe the green indicator.
+2.  **Click** `H` (High Boost).
+3.  **Click** `OFF`.
+**Goal**: To enable automatic magnification of small reads during a session.
+
+### 3. Calibrate
+**Locate**: The blue "Calibrate" button.
+**Action**:
+1.  **Click** "Calibrate".
+2.  Follow the on-screen prompts (Squeeze, Relax, Breathe).
+**Goal**: To normalize the sensor to your current skin resistance baseline.
+
+### 4. TA SET
+**Locate**: The "SET" button (Center) or the "TA SET" reading.
+**Action**:
+1.  Wait for the graph line to drift near the top or bottom.
+2.  **Click** "SET".
+**Result**: The graph line instantly re-centers to the middle of the screen.
+
+### 5. TA COUNTER
+**Locate**: The "TA Counter" panel (Bottom Left).
+**Action**:
+1.  **Click** "Start". The background turns Red (Active).
+2.  **Watch** the value accumulate as the graph falls.
+3.  **Click** "Stop". The background turns Green (Idle).
+4.  **Click** "Reset" to zero the counter.
+
+### 6. RECORD
+**Locate**: The "Record" button.
+**Action**:
+1.  **Click** "Record". Note the red status text and recording timer.
+2.  **Click** "Stop" to end the session recording.
 
 ---
 
