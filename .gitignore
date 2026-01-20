@@ -3,3 +3,5 @@ pdfs/
 __pycache__/
 .idea/
 *.pyc
+gsr_meter/__pycache__/
+gsr_meter/gsr_meter/__pycache__/
