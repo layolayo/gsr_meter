@@ -405,7 +405,7 @@ if __name__ == "__main__":
     
     # --- GUI ---
     fig = plt.figure(figsize=(15, 9), facecolor='#2b2b2b') 
-    try: fig.canvas.manager.set_window_title("EK GSR/HRM Session Monitor (v41 Dark)")
+    try: fig.canvas.manager.set_window_title("EK GSR/HRM Session Monitor (v42 Dark Viewer)")
     except Exception: pass 
     
     plt.subplots_adjust(left=0.05, right=0.98, top=0.93, bottom=0.05)
