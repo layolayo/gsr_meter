@@ -211,7 +211,7 @@ class SessionViewer:
             self.log(f"Loading Session: {folder_path}")
 
             # Read CSV
-            self.df = pd.read_csv(gsr_path)
+            self.df = pd.read_csv(gsr_path, low_memory=False)
             self.df.columns = [c.strip() for c in self.df.columns]
             
             # Ensure Time Column
