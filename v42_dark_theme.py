@@ -37,14 +37,13 @@ R_REF = 83.0
 # --- GLOBAL VARIABLES ---
 latest_gsr_ta = 0.0
 GSR_CENTER_VAL = 3.0
-BASE_SENSITIVITY = 0.3 
-CALIB_TARGET_RATIO = 1.0 / 2.0 
-booster_level = 0      # 0=OFF, 1=LO, 2=MED, 3=HI
-active_boost_level = 0 # The level currently applied to graph zoom
+# BASE_SENSITIVITY removed in favor of LOG_WINDOW_HEIGHT
+LOG_WINDOW_HEIGHT = 0.05   # [MOD] Much higher starting sensitivity (approx 13.3x linear)
+ZOOM_COEFFICIENT = 1.0     
 CALIB_PIVOT_TA = 2.0
-active_event_label = ""   # The TA value where Sensitivity scaling is neutral (1.0x)
-latest_d_ta = 0.0 # [NEW] Global for CSV Logging
-last_stable_window = 5.0  # [NEW] Track last valid window for motion freeze
+active_event_label = ""   
+latest_d_ta = 0.0 
+last_stable_window = 0.125 # [MOD]
 gsr_capture_queue = collections.deque(maxlen=100)
 # [NEW] Manual Blit Globals
 graph_bg = None 
@@ -92,41 +91,20 @@ ignore_ui_callbacks = False
 headset_on_head = False
 # dead globals removed
 pattern_hold_until = 0.0
-saved_boost_level = 0 # Moved from local
 
 
 def get_effective_window():
-    # Use active_boost_level (applied on Reset) not target booster_level
-    if active_boost_level == 0: 
-        return min(1.0, BASE_SENSITIVITY) 
-    
-    # Logic from v20
-    mult = [1.0, 0.6, 1.0, 1.4][active_boost_level]
-    safe_ta = max(1.0, GSR_CENTER_VAL)
     global last_stable_window, motion_lock_expiry    
 
     # Motion Safety: If Locked, FREEZE sensitivity at last known good value.
-
     if time.time() < motion_lock_expiry:
          return last_stable_window
 
-    try:
-        # Ratio = TA / CALIB_PIVOT. (e.g. 2.75 / 2.75 = 1.0)
-        # We want Higher TA -> Smaller Window (Higher Sens).
-        # So we raise to NEGATIVE mult. (Ratio ^ -mult).
-        # If Ratio = 1.0 (Reset), Factor = 1.0 -> No Change.
-        pivot = max(0.1, CALIB_PIVOT_TA) # Safety
-        val = BASE_SENSITIVITY * math.pow((safe_ta / pivot), -mult)
-        
-        # Enforce Global Limit: Window <= 1.0 (Sens >= 1.0)
-        # Even if Auto-Boost zooms out (because TA < Pivot), don't go below Sens 1.0
-
-        val = min(1.0, val)
-        
-        last_stable_window = val # Update stable value
-        return val
-    except Exception:
-        return BASE_SENSITIVITY
+    # Log scaling is "Set and Forget". We return the base log window.
+    val = LOG_WINDOW_HEIGHT * ZOOM_COEFFICIENT
+    
+    last_stable_window = val
+    return val
 
 # --- STATE ---
 # 60Hz * 10s = 600 samples (60Hz Plotting) -> Increased to 800 to ensure full coverage
@@ -226,7 +204,7 @@ class GSRReader(threading.Thread):
                              # Log GSR
                              if writer_gsr:
                                   win = get_effective_window()
-                                  global CALIB_PIVOT_TA, active_boost_level, active_event_label, motion_lock_expiry, current_pattern
+                                  global CALIB_PIVOT_TA, active_event_label, motion_lock_expiry, current_pattern
                                   note = active_event_label
                                   if note: active_event_label = ""
                                   
@@ -240,7 +218,8 @@ class GSRReader(threading.Thread):
                                   # Note: Might be slightly delayed 60Hz vs 60Hz but adequate.
                                   d_ta_log = latest_d_ta if 'latest_d_ta' in globals() else 0.0
                                        
-                                  writer_gsr.writerow([ts_now, f"{elapsed:.3f}", f"{self.current_ta:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", active_boost_level, note, current_pattern, f"{d_ta_log:.5f}"])
+                                  log_ta = math.log10(max(0.01, self.current_ta))
+                                  writer_gsr.writerow([ts_now, f"{elapsed:.3f}", f"{self.current_ta:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{d_ta_log:.5f}", f"{log_ta:.5f}"])
                              
                          except Exception: pass
 
@@ -315,8 +294,8 @@ def save_config():
             'mic_gain': audio_handler.current_mic_gain if 'audio_handler' in globals() else 3.0,
             'mic_rate': audio_handler.current_mic_rate if 'audio_handler' in globals() else None, 
             'gsr_center': GSR_CENTER_VAL,
-            'gsr_base': BASE_SENSITIVITY, 
-            'booster_idx': booster_level  
+            'log_window': LOG_WINDOW_HEIGHT, 
+            'zoom_coeff': ZOOM_COEFFICIENT
         }
         
         # (Graph Visibility logic removed)
@@ -343,12 +322,10 @@ def load_config():
              print(f"[Config] Audio: {audio_handler.current_mic_name}, Rate: {audio_handler.current_mic_rate}, Gain: {audio_handler.current_mic_gain}")
 
         # Restore GSR Settings
-        global GSR_CENTER_VAL, BASE_SENSITIVITY, booster_level
+        global GSR_CENTER_VAL, LOG_WINDOW_HEIGHT, ZOOM_COEFFICIENT
         GSR_CENTER_VAL = float(cfg.get('gsr_center', 3.0))
-        BASE_SENSITIVITY = float(cfg.get('gsr_base', 0.3)) 
-        if 'gsr_base' not in cfg: BASE_SENSITIVITY = float(cfg.get('gsr_window', 0.3))
-            
-        booster_level = int(cfg.get('booster_idx', 0))
+        LOG_WINDOW_HEIGHT = float(cfg.get('log_window', 0.3125))
+        ZOOM_COEFFICIENT = float(cfg.get('zoom_coeff', 1.0))
         
         print(f"[Config] Loaded settings.")
     except Exception as e:
@@ -558,7 +535,7 @@ if __name__ == "__main__":
     ui_refs['txt_pattern'] = txt_pattern
     
     # === GSR CONTROLS CONTAINER ===
-    # A single bordered panel to contain Scale, Sens, Boost, Calibrate
+    # A single bordered panel to contain Scale, Sens, Calibrate
     r_ctrl = [0.835, 0.57, 0.13, 0.33] # H = 0.33
     ax_ctrl_bg = reg_ax(r_ctrl, main_view_axes)
     ax_ctrl_bg.set_facecolor('#333333')
@@ -573,143 +550,177 @@ if __name__ == "__main__":
     ax_scale_lbl.set_axis_off()
     ax_scale_lbl.text(0.5, 0.5, "GSR Scale", ha='center', fontweight='bold', fontsize=12, color='white')
     
-    # --- 2. Sensitivity ---
-    ax_win_lbl = reg_ax([0.835, 0.81, 0.13, 0.03], main_view_axes)
-    ax_win_lbl.set_axis_off()
-    ax_win_lbl.text(0.5, 0.5, "Sensitivity", ha='center', va='center', fontsize=10, fontweight='bold', color='#cccccc')
+    # --- 2. Zoom Level Slider ---
+    ax_zoom_lbl = reg_ax([0.835, 0.81, 0.13, 0.03], main_view_axes)
+    ax_zoom_lbl.set_axis_off()
+    ax_zoom_lbl.text(0.5, 0.5, "Zoom Level", ha='center', va='center', fontsize=10, fontweight='bold', color='#cccccc')
     
-    # Stepper [ - ] [ Val ] [ + ]
-    y_sens = 0.77 # [MOVED UP] Was 0.50
-    ax_w_down = reg_ax([0.85, y_sens, 0.03, 0.03], main_view_axes)
-    ax_w_val  = reg_ax([0.88, y_sens, 0.04, 0.03], main_view_axes)
-    ax_w_up   = reg_ax([0.92, y_sens, 0.03, 0.03], main_view_axes)
+    # [NEW] Slider Track
+    y_zoom = 0.77 
+    ax_zoom_track = reg_ax([0.845, y_zoom, 0.11, 0.025], main_view_axes)
+    ax_zoom_track.set_facecolor('#444444')
+    ax_zoom_track.set_xticks([]); ax_zoom_track.set_yticks([])
+    ax_zoom_track.set_xlim(0, 1) # [NEW] Force exact coordinate mapping
+    ax_zoom_track.margins(0)      # [NEW]
+    ax_zoom_track.set_navigate(False) # [NEW] Disable standard pan/zoom
+    ax_zoom_track.set_zorder(500) 
+    # Slider line
+    rect_track = plt.Rectangle((0, 0.45), 1, 0.1, transform=ax_zoom_track.transAxes, color='#888888')
+    ax_zoom_track.add_patch(rect_track)
+    # Slider thumb
+    thumb_zoom, = ax_zoom_track.plot([0.5], [0.5], 'o', color='#00ff00', markersize=10, transform=ax_zoom_track.transAxes)
     
-    # [FIX] Enforce Z-Order > 50 (Proxy Layer)
-    ax_w_down.set_zorder(100); ax_w_val.set_zorder(100); ax_w_up.set_zorder(100)
-    
-    ax_w_val.set_axis_off()
-    
+    # [NEW] Visual References (Tick & Labels)
+    ax_zoom_track.axvline(0.5, color='#ffffff', lw=1, alpha=0.5, ymin=0, ymax=1) # Center Tick
+    txt_z_left = ax_zoom_track.text(0.0, -0.6, "0.5x", transform=ax_zoom_track.transAxes, ha='left', va='top', fontsize=7, color='#888888')
+    txt_z_mid  = ax_zoom_track.text(0.5, -0.6, "1x", transform=ax_zoom_track.transAxes, ha='center', va='top', fontsize=7, color='#ffffff')
+    txt_z_right= ax_zoom_track.text(1.0, -0.6, "2.0x", transform=ax_zoom_track.transAxes, ha='right', va='top', fontsize=7, color='#888888')
+
+    ui_refs['ax_zoom_track'] = ax_zoom_track
+    ui_refs['rect_track'] = rect_track
+    ui_refs['thumb_zoom'] = thumb_zoom
+    ui_refs['txt_z_labels'] = [txt_z_left, txt_z_mid, txt_z_right] # For blitting
+
     def get_display_sens():
-        w = get_effective_window()
-        if w <= 0.001: return 99.9
-        return 1.0 / w
+        # [MOD] Returns TOTAL Effective Sensitivity (Base * Zoom)
+        w_eff = LOG_WINDOW_HEIGHT * ZOOM_COEFFICIENT
+        if w_eff <= 0.0001: return 99.9
+        return 1.0 / (w_eff * 1.5)
 
-    # Initial display
-    txt_win_val = ax_w_val.text(0.5, 0.5, f"{get_display_sens():.2f}", ha='center', va='center', fontsize=10, fontweight='bold', color='white')
-    txt_win_val.set_animated(True)
-    
-    btn_win_down = Button(ax_w_down, "-", color='#444444', hovercolor='#666666')
-    btn_win_down.label.set_color('white')
-    btn_win_up   = Button(ax_w_up, "+", color='#444444', hovercolor='#666666')
-    btn_win_up.label.set_color('white')
+    def get_span_pct():
+        # [NEW] Total screen height as a percentage of TA
+        # Top/Bottom ratio is 10^W
+        w_eff = LOG_WINDOW_HEIGHT * ZOOM_COEFFICIENT
+        return (math.pow(10, w_eff) - 1.0) * 100.0
 
-    # --- 3. Auto-Boost ---
-    ax_boost_lbl = reg_ax([0.835, 0.72, 0.13, 0.02], main_view_axes)
-    ax_boost_lbl.set_axis_off()
-    ax_boost_lbl.text(0.5, 0.5, "Auto-Boost", ha='center', va='center', fontsize=10, fontweight='bold', color='#cccccc')
-
-    # Buttons [OFF] [L] [M] [H]
-    y_b = 0.68 # [MOVED UP] Was 0.41
-    ax_b_off = reg_ax([0.845, y_b, 0.030, 0.025], main_view_axes)
-    ax_b_lo  = reg_ax([0.880, y_b, 0.020, 0.025], main_view_axes)
-    ax_b_med = reg_ax([0.905, y_b, 0.020, 0.025], main_view_axes)
-    ax_b_hi  = reg_ax([0.930, y_b, 0.020, 0.025], main_view_axes)
-    
-    # [REQ] 0 -> OFF
-    btn_b_off = Button(ax_b_off, "OFF", color='#444444', hovercolor='#666666')
-    btn_b_off.label.set_fontsize(7)
-    btn_b_off.label.set_color('white')
-    
-    btn_b_lo  = Button(ax_b_lo,  "L", color='#444444', hovercolor='#666666')
-    btn_b_lo.label.set_color('white')
-    btn_b_med = Button(ax_b_med, "M", color='#444444', hovercolor='#666666')
-    btn_b_med.label.set_color('white')
-    btn_b_hi  = Button(ax_b_hi,  "H", color='#444444', hovercolor='#666666')
-    btn_b_hi.label.set_color('white')
-    
-    boost_btns = [btn_b_off, btn_b_lo, btn_b_med, btn_b_hi]
-    
-    def update_boost_ui():
-        for i, btn in enumerate(boost_btns):
-            if i == booster_level:
-                # Active
-                btn.color = '#005500' # Darker Green
-                btn.hovercolor = '#007700'
-                try: btn.label.set_color('white')
-                except Exception: pass
-                # [FIX] Force Visual Update (Matplotlib Button won't auto-update from attr change)
-                try: btn.ax.set_facecolor(btn.color)
-                except Exception: pass
-            else:
-                # Idle
-                btn.color = '#444444'
-                btn.hovercolor = '#666666'
-                try: btn.label.set_color('white')
-                except Exception: pass
-                # [FIX] Force Visual Update
-                try: btn.ax.set_facecolor(btn.color)
-                except Exception: pass
-
-
-        
+    def update_zoom_ui():
+        # [MOD] Update Slider Position based on current ZOOM_COEFFICIENT
         try:
-             fig.canvas.draw_idle()
-        except Exception: pass
+            x_norm = (math.log(1.0/ZOOM_COEFFICIENT, 2.0) / 2.0) + 0.5
+            thumb_zoom.set_xdata([x_norm])
+        except: pass
+        
+        # [MOD] Unified Display: SPAN: X% [Multiplier]
+        # We use an integer for Span as requested.
+        try:
+             span_val = int(round(get_span_pct()))
+             zoom_val = 1.0 / ZOOM_COEFFICIENT
+             txt_win_val.set_text(f"SPAN: {span_val}% [{zoom_val:.1f}x]")
+        except: pass
 
-    # [FIX] Load Config NOW that UI is ready
-    # [FIX] Config loaded early (Line 401)
-    # load_config()
-    update_boost_ui() # Apply Loaded Settings
+        # [MOD] Clear second line as it's now consolidated
+        if 'txt_span_val' in ui_refs:
+             ui_refs['txt_span_val'].set_text("")
+        
+        # [FIX] REMOVED draw_idle() from main loop 
+        # Redrawing is handled by final_blit()
+
+    # [NEW] Event Handler for Zoom Slider (with Grabbed state)
+    slider_grabbed = False
+
+    def on_zoom_click(event):
+        global slider_grabbed
+        if event.button == 1:
+            if event.name == 'button_press_event' and event.inaxes == ax_zoom_track:
+                slider_grabbed = True
+            
+            if slider_grabbed and event.inaxes == ax_zoom_track:
+                global ZOOM_COEFFICIENT
+                inv = ax_zoom_track.transAxes.inverted()
+                x_ax, y_ax = inv.transform((event.x, event.y))
+                x_val = max(0, min(1, x_ax))
+                
+                # [MOD] Stepped Zoom (Snap to 0.1 Increments)
+                # Mult = 2 ^ ((x-0.5)*2)
+                mult_raw = math.pow(2.0, (x_val - 0.5) * 2)
+                
+                # Snap to specific 0.1 steps [0.5, 0.6 ... 2.0]
+                steps = [round(s * 0.1, 1) for s in range(5, 21)]
+                mult_stepped = min(steps, key=lambda s: abs(s - mult_raw))
+                
+                ZOOM_COEFFICIENT = 1.0 / mult_stepped
+                update_zoom_ui()
+
+    def on_zoom_release(event):
+        global slider_grabbed
+        if slider_grabbed:
+            slider_grabbed = False
+            save_config()
+
+    def on_key_press(event):
+        global ZOOM_COEFFICIENT
+        # [NEW] Arrow Key Zoom Controls (Locked to 0.1 Steps)
+        if event.key in ['left', 'right']:
+            steps = [round(s * 0.1, 1) for s in range(5, 21)]
+            current_mult = round(1.0 / ZOOM_COEFFICIENT, 1)
+            
+            try:
+                idx = steps.index(current_mult)
+                new_idx = idx + (1 if event.key == 'right' else -1)
+                new_idx = max(0, min(len(steps)-1, new_idx))
+                new_mult = steps[new_idx]
+            except ValueError:
+                # If current coeff is weirdly in-between, find nearest
+                new_mult = min(steps, key=lambda s: abs(s - current_mult))
+            
+            ZOOM_COEFFICIENT = 1.0 / new_mult
+            update_zoom_ui()
+            save_config()
+
+    fig.canvas.mpl_connect('button_press_event', on_zoom_click)
+    fig.canvas.mpl_connect('button_release_event', on_zoom_release)
+    fig.canvas.mpl_connect('motion_notify_event', on_zoom_click)
+    fig.canvas.mpl_connect('key_press_event', on_key_press) # [NEW]
+
+    # --- 3. Sensitivity Value Display ---
+    y_sens_val = 0.70 # [REQ] NEATLY PLACED BELOW ZOOM (DO NOT CHANGE AGAIN)
+    ax_w_val = reg_ax([0.85, y_sens_val, 0.10, 0.04], main_view_axes)
+    ui_refs['ax_w_val'] = ax_w_val
+    ax_w_val.set_xticks([]); ax_w_val.set_yticks([])
+    ax_w_val.set_facecolor('#333333') # [FIX] Ensure consistent background
+    ax_w_val.set_zorder(100)
+    # Clear visual border
+    ax_w_val.add_patch(plt.Rectangle((0,0), 1, 1, transform=ax_w_val.transAxes, fill=False, ec='#555555', lw=1))
     
-    def set_boost(lvl):
-        global booster_level, active_boost_level
-        booster_level = lvl
-        # active_boost_level = lvl # [REQ] Removed immediate sync. Waits for Reset.
-        
-        update_boost_ui()
-        # Update text immediately (Shows potential, or current? Current Window usually)
-        # But if active != booster, display might differ. 
-        # txt_w_val shows get_display_sens().
-        txt_win_val.set_text(f"{get_display_sens():.2f}")
-        
-        # [FIX] Do NOT Reset immediately. User wants Auto-Boost to only trigger on OOB.
-        # if latest_gsr_ta > 0.01:
-        #      update_gsr_center(float(f"{latest_gsr_ta:.2f}"))             
-        #plt.draw()
-
-    btn_b_off.on_clicked(lambda _: set_boost(0))
-    btn_b_lo.on_clicked(lambda _: set_boost(1))
-    btn_b_med.on_clicked(lambda _: set_boost(2))
-    btn_b_hi.on_clicked(lambda _: set_boost(3))
+    # Value text (Consolidated)
+    txt_win_val = ax_w_val.text(0.5, 0.5, "", ha='center', va='center', fontsize=9, fontweight='bold', color='white')
+    txt_span_val = ax_w_val.text(0.5, 0.30, "", ha='center', va='center', fontsize=8, color='#aaaaaa')
+    
+    txt_win_val.set_animated(True)
+    txt_span_val.set_animated(True)
+    ui_refs['txt_win_val'] = txt_win_val 
+    ui_refs['txt_span_val'] = txt_span_val 
+    ui_refs['ax_w_val'] = ax_w_val
+    
+    update_zoom_ui() # Initial draw
+    
+       
+    # [FIX] Load Config
+    # load_config() already called at top-level potentially, but ensured here if needed.
     
     # --- 4. Calibrate ---
-    ax_calib = reg_ax([0.85, 0.60, 0.10, 0.04], main_view_axes)
-    ax_calib.set_zorder(100) # [FIX] Ensure Clickable
+    ax_calib = reg_ax([0.85, 0.60, 0.10, 0.04], main_view_axes) # [MOD] Restored original position
+    ax_calib.set_zorder(100) 
+    ui_refs['ax_calib'] = ax_calib 
     
     btn_calib = Button(ax_calib, "Calibrate", color='#004488', hovercolor='#0066aa')
     btn_calib.label.set_color('white')
-    
-    # Saved Boost Level for Restore
-    # global saved_boost_level (Defined at top)
-
+    ui_refs['btn_calib'] = btn_calib
+    btn_calib.ax.patch.set_animated(True)
+    btn_calib.label.set_animated(True)
     
     def start_calibration(event):
         global calib_mode, calib_step, calib_phase, calib_start_time, calib_base_ta, calib_min_ta, calib_vals, calib_step_start_time
-        global booster_level, saved_boost_level, CALIB_PIVOT_TA, active_boost_level
+        global CALIB_PIVOT_TA, ZOOM_COEFFICIENT
         
-        # Save current level
-        saved_boost_level = booster_level
-        # Reset Pivot to default (Optional, but clean)
-        CALIB_PIVOT_TA = 2.0
+        # [MOD] Ensure we have a sane baseline if current is essentially 0
+        global LOG_WINDOW_HEIGHT
+        if LOG_WINDOW_HEIGHT < 0.01:
+             LOG_WINDOW_HEIGHT = 0.125 
         
-        # Force Manual Mode (OFF)
-        set_boost(0)
-        active_boost_level = 0 # [REQ] Force Graph to Manual Mode immediately 
-        
-        # [REQ] Auto-Set Sensitivity to 2.0 (Window 0.5)
-        global BASE_SENSITIVITY
-        BASE_SENSITIVITY = 0.5
-        txt_win_val.set_text(f"{get_display_sens():.2f}")
+        # [NEW] Reset Zoom on Calibration
+        ZOOM_COEFFICIENT = 1.0
+        update_zoom_ui()
         #plt.draw() 
         
         calib_mode = True
@@ -721,89 +732,29 @@ if __name__ == "__main__":
         calib_min_ta = latest_gsr_ta
         calib_vals = [] # Store drops
         
-        log_msg(f"Calibration Started. Saving Boost Lvl: {saved_boost_level}")
+        log_msg(f"Calibration Started.")
         global active_event_label
         active_event_label = "CALIB_START"
         update_gsr_center(latest_gsr_ta)
         
     btn_calib.on_clicked(start_calibration)
     
-    # === BIO-GRID (Start at Bottom) ===
-    # [FIX] Square Layout Calculation: h = w * (15/9) = 0.13 * 1.666 = 0.217
-    # Fits between 0.34 and 0.56
-    # r_bio = [0.835, 0.343, 0.13, 0.217] 
-    # ax_grid = reg_ax(r_bio, main_view_axes)
-    # ax_grid.set_facecolor('#444444')
-    # [req] Force layout to square
-    # ax_grid.set_aspect('equal', adjustable='box') # Optional, but rect is calc to be square.
-    
-    # ax_grid.set_xlim(-6, 6) # Z-Score Range (Expanded)
-    # ax_grid.set_ylim(-6, 6)
-    # ax_grid.set_xticks([])
-    # ax_grid.set_yticks([])
-    
-    # Crosshair
-    # ax_grid.axhline(0, color='#888', lw=1, alpha=0.5)
-    # ax_grid.axvline(0, color='#888', lw=1, alpha=0.5)
-    
-    # Labels (Small)
-    # [NEW] Axis Labels
-    # ax_grid.text(0.5, 0.95, "NO CONFRONT", transform=ax_grid.transAxes, ha='center', fontsize=5, color='#ccc')
-    # ax_grid.text(0.5, 0.02, "CONFRONT", transform=ax_grid.transAxes, ha='center', fontsize=5, color='#ccc')
-    # ax_grid.text(0.03, 0.5, "STRESS", transform=ax_grid.transAxes, va='center', rotation=90, fontsize=5, color='#ff6666')
-    # ax_grid.text(0.95, 0.5, "RECOVERY", transform=ax_grid.transAxes, va='center', rotation=-90, fontsize=5, color='#66ff66')
-
-    # Q1 (TR): +HRV (Recov), +TA (Rise/Mass) -> DISCONNECT (Safe but Avoidant)
-    # ax_grid.text(0.60, 0.87, "DISCONNECT", transform=ax_grid.transAxes, fontsize=6, color='orange', alpha=0.7)
-    
-    # Q2 (TL): -HRV (Stress), +TA (Rise/Mass) -> RESISTANCE (Unsafe Avoidance)
-    # ax_grid.text(0.13, 0.87, "RESISTANCE", transform=ax_grid.transAxes, fontsize=6, color='#ff4444', alpha=0.7)
-    
-    # Q3 (BL): -HRV (Stress), -TA (Fall/Action) -> OVERWHELM (Unsafe Confront)
-    # ax_grid.text(0.10, 0.07, "OVERWHELM", transform=ax_grid.transAxes, fontsize=6, color='#aaaaaa', alpha=0.7)
-
-    # Q4 (BR): +HRV (Recov), -TA (Fall/Action) -> INTEGRATION (Safe Confront)
-    # ax_grid.text(0.60, 0.07, "INTEGRATION", transform=ax_grid.transAxes, fontsize=6, color='#00ff00', alpha=0.7)
-    
-    # Moving Dot
-    # grid_dot, = ax_grid.plot([], [], 'o', color='purple', markersize=8, markeredgecolor='black')
-    
-    # Text Below (Shifted Down for Square Grid)
-    # ax_grid_txt = reg_ax([0.835, 0.25, 0.13, 0.08], main_view_axes)
-    # ... (remnants removed)
-
-    # [REMOVED BIO-GRID UPDATE LOGIC]
-
-
     
     def change_sensitivity(direction):
-        global BASE_SENSITIVITY
-        # [REQ] Increase/Decrease by % of current TA SET (GSR_CENTER_VAL)
-        # "delta" was 0.05. Now we interpret direction as +1 or -1 sign.
-        # Step size = 0.5% of Center (Factor of 10 less than 5%).
-        step = max(0.005, GSR_CENTER_VAL * 0.005)
-        
-        # If direction > 0 (+ button), likely means INCREASE SENSITIVITY (make graph more reactive = SMALLER WINDOW)
-        # But previous code said: "Increase Sens = Subtract Window".
-        # So: New Window = Base - (Direction * Step)
-        
-        # [FIX] Sensitivity >= 1.0 means Window <= 1.0
-        # Mult is an exponent, so at Pivot (Ratio=1), it has no effect.
-        # We just clamp Base Window to 1.0.
+        global ZOOM_COEFFICIENT
+        # Adjust ZOOM_COEFFICIENT by 5%
+        step = ZOOM_COEFFICIENT * 0.05
         
         delta = step * direction
-        new_win = BASE_SENSITIVITY - delta
+        # Direction +1 means INCREASE SENSITIVITY -> REDUCE WINDOW (Lower Zoom Coeff)
+        new_coeff = ZOOM_COEFFICIENT - delta
         
-        BASE_SENSITIVITY = max(0.05, min(1.0, rounded_step(new_win)))
-        txt_win_val.set_text(f"{get_display_sens():.2f}")
+        ZOOM_COEFFICIENT = max(0.2, min(2.5, rounded_step(new_coeff)))
+        update_zoom_ui()
         #plt.draw()
         
     def rounded_step(val): return round(val * 1000) / 1000.0 # Round to nearest 0.001
 
-    # [FIX] Inverted Buttons: Up(+) adds Sensitivity (Reduces Window)
-    # [FIX] Inverted Buttons: Up(+) adds Sensitivity (Reduces Window)
-    btn_win_down.on_clicked(lambda _: change_sensitivity(-1)) # Reduce Sens = Add to Window
-    btn_win_up.on_clicked(lambda _: change_sensitivity(1))    # Increase Sens = Subtract Window
 
     # [FIX] Moved TA SET to central box
     # val_txt defined in Scores Panel
@@ -814,14 +765,13 @@ if __name__ == "__main__":
 
     def update_gsr_center(val, force_pivot=False, reason="System"):
         global GSR_CENTER_VAL, ta_accum, calib_mode # [FIX] Added ta_accum, calib_mode
-        global active_boost_level, booster_level    # [FIX] Added boost globals
         global motion_lock_expiry # [NEW]
         global CALIB_PIVOT_TA
         
         # Log the Update
-        if reason != "System":
+        if reason != "System" and reason != "Edge_Pull":
              log_msg(f"{reason}: Center to {val:.2f}")
-
+        
         # [NEW] TA Counter Logic (Count Drops)
         if counting_active:
              # [REQ] Global Motion Block
@@ -829,7 +779,7 @@ if __name__ == "__main__":
                  diff = GSR_CENTER_VAL - val
                  if diff > 0 and not calib_mode: 
                      ta_accum += diff
-
+        
         if not calib_mode:
             # Update Pivot ONLY if Forced (Calibration Complete)
             if force_pivot:
@@ -840,50 +790,41 @@ if __name__ == "__main__":
                  # Only update Pivot if Reference Reset (Space/Button)
                  if reason.startswith("User"):
                       CALIB_PIVOT_TA = max(0.1, val)
-
-            active_boost_level = booster_level
-
+        
         GSR_CENTER_VAL = val
         if val_txt: val_txt.set_text(f"TA SET: {val:.2f}")
 
-    def force_set_center(_=None):
-        # if is_recording or not is_connected: return # Optional constraint
-        
-        # [REQ] Apply pending Auto-Boost Zoom on Reset
-        global active_boost_level
-        active_boost_level = booster_level
-        
-        # Force center
-        update_gsr_center(latest_gsr_ta)
-
     # Keyboard Control
     def on_key(event):
-        global GSR_CENTER_VAL, active_boost_level, booster_level
+        global GSR_CENTER_VAL
         eff_win = get_effective_window() # [FIX] Use effective window
-        # Inverted Logic:
-        # Intuition: "Up" arrow = Increase Value.
-        if event.key == 'up':
-            new_val = min(8.0, GSR_CENTER_VAL - (eff_win * 0.1))
-            update_gsr_center(new_val)
-        elif event.key == 'down':
-            new_val = max(0.0, GSR_CENTER_VAL + (eff_win * 0.1))
-            update_gsr_center(new_val)
-        elif event.key == 'right':
+        log_center = math.log10(max(0.01, GSR_CENTER_VAL))
+        # Step size is 10% of the Log Window
+        log_step = eff_win * 0.1
+        
+        #if event.key == 'up':
+            # Increasing Graph value = Decreasing TA
+         #   new_log = log_center - log_step
+          #  update_gsr_center(math.pow(10, new_log))
+        #elif event.key == 'down':
+            # Decreasing Graph value = Increasing TA
+            #new_log = log_center + log_step
+            #update_gsr_center(math.pow(10, new_log))
+        if event.key == 'right':
             change_sensitivity(1) # [FIX] +Sens (Decrease Window)
         elif event.key == 'left':
             change_sensitivity(-1) # [FIX] -Sens (Increase Window)
-        elif event.key == ' ':
+        #if event.key == ' ':
             # [REQ] Spacebar auto-sets TA Center to current value AND syncs Auto-Boost Zoom
-            if latest_gsr_ta > 0.1:
-                global active_event_label
-                if gsr_patterns:
-                    pass # gsr_patterns.reset() # [FIX] Disabled per user request
+        #    if latest_gsr_ta > 0.1:
+         #      global active_event_label
+          #      if gsr_patterns:
+           #         pass # gsr_patterns.reset() # [FIX] Disabled per user request
                 
                 # [REQ] Log the reset event
-                active_event_label = f"USER_TA_RESET to {latest_gsr_ta:.3f}"
+          #      active_event_label = f"USER_TA_RESET to {latest_gsr_ta:.3f}"
                 # log_msg moved to update_gsr_center
-                active_boost_level = booster_level
-                update_gsr_center(latest_gsr_ta, reason="User Reset")
+          #      update_gsr_center(latest_gsr_ta, reason="User Reset")
 
     fig.canvas.mpl_connect('key_press_event', on_key)
     
@@ -993,18 +934,7 @@ if __name__ == "__main__":
     val_txt = ax_scores.text(0.5, 0.50, f"TA SET: {GSR_CENTER_VAL:.2f}", ha='center', va='center', fontsize=12, fontweight='bold', color='#aaaaaa')
     txt_ta_score.set_animated(True)
     val_txt.set_animated(True)
-
-    # SET Button
-    ax_btn_set = reg_ax([0.48, 0.06, 0.06, 0.04], main_view_axes)
-    btn_ta_set_now = Button(ax_btn_set, "SET", color='#004488', hovercolor='#0066aa')
-    btn_ta_set_now.label.set_color('white')
-    ui_refs['btn_ta_set_now'] = btn_ta_set_now
-    # [FIX] Set Animated
-    btn_ta_set_now.ax.patch.set_animated(True)
-    btn_ta_set_now.label.set_animated(True)
-    
-    btn_ta_set_now.on_clicked(force_set_center)
-    
+     
     # === STATUS BAR (Restored) ===
     ax_status = reg_ax([0.05, 0.94, 0.915, 0.04], main_view_axes)
     ax_status.set_xlim(0, 1)
@@ -1059,6 +989,11 @@ if __name__ == "__main__":
         global notes_filename, audio_filename # [FIX] Restored audio_filename
         # [FIX] Audio Globals Removed (Using AudioHandler)
         global pending_rec, pending_notes, session_start_ta, counting_active, ta_accum # [FIX] Globals
+        global ZOOM_COEFFICIENT # [NEW]
+        
+        # [REQ] Auto-reset Zoom on Session Start
+        ZOOM_COEFFICIENT = 1.0
+        update_zoom_ui()
         
         try:
              # Capture Start Stats
@@ -1088,7 +1023,7 @@ if __name__ == "__main__":
              f_gsr = open(fname_gsr, 'w', newline='')
              writer_gsr = csv.writer(f_gsr)
              # [FIX] Added Delta_TA
-             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Boost", "Notes", "Pattern", "Delta_TA"])
+             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Notes", "Pattern", "Delta_TA", "Log_TA"])
              
              # (Trend CSV Removed)
 
@@ -1165,7 +1100,6 @@ if __name__ == "__main__":
              start_actual_recording() # [REQ] Start timer immediately
              pending_rec = True # Use this flag to trigger the "SESSION STARTED" message after calib
              
-             # Start Calibration via centralized function (Ensures Boost handling)
              start_calibration(None)
              
         else:
@@ -1527,7 +1461,7 @@ if __name__ == "__main__":
     def update(_frame=0):
         global current_view, desired_view, current_state, event_detected, ignore_ui_callbacks
         global last_motion_log, motion_lock_expiry, motion_prev_ta, motion_prev_time
-        global headset_on_head, BASE_SENSITIVITY, saved_boost_level, booster_level
+        global headset_on_head, LOG_WINDOW_HEIGHT
         global calib_mode, calib_phase, calib_step, calib_start_time, calib_step_start_time, calib_base_ta, calib_min_ta, calib_vals, last_calib_ratio
         global recording_start_time, is_recording, session_start_ta, pending_rec
         global active_event_label
@@ -1591,21 +1525,44 @@ if __name__ == "__main__":
         sys_parts = [f"Mic: {audio_handler.current_mic_name}"]
         system_line.set_text(" | ".join(sys_parts))
         
-        # [NEW] Rolling TA Set (7-10s Mean/Median)
+        # [NEW] Rolling TA Set (10s Median - Matches Visible Graph)
         if latest_gsr_ta > 0.1 and not calib_mode:
-            # Use last 480 samples (~8 seconds)
-            history_rolling = list(bands_history['GSR'])[-480:]
-            if len(history_rolling) > 60: # Need some history
+            # Use last 600 samples (~10 seconds at 60Hz)
+            # This matches the visible graph history for intuitive tracking.
+            history_rolling = list(bands_history['GSR'])[-600:]
+            if len(history_rolling) > 60: 
                 rolling_median = float(np.median(history_rolling))
                 
-                # Update Center via centralized function to handle TA Counter logic
-                # We do this every frame for smooth tracking
+                # Update Center via centralized function
                 update_gsr_center(rolling_median, reason="System")
             
-        # [Moved] Update GSR UI
+            # [NEW] Elastic Centering (Edge Pull)
+            # If the current TA is hitting the edge, pull the center immediately
+            # Formula: rel_y = (log_task - min_p_log) / log_win * 100.0
+            log_curr = math.log10(max(0.01, latest_gsr_ta))
+            eff_win = get_effective_window()
+            log_center = math.log10(max(0.01, GSR_CENTER_VAL))
+            min_p_log = log_center - (0.625 * eff_win)
+            
+            rel_y = (log_curr - min_p_log) / eff_win * 100.0
+            
+            if rel_y > 92 or rel_y < 8:
+                 # [MOD] Dampened Pull (Elastic) instead of Instant Snap
+                 # Target: Align TA exactly with the reference line (62.5% height)
+                 # Moving 10% of the distance per frame results in a smooth "elastic" return.
+                 target = latest_gsr_ta
+                 current = GSR_CENTER_VAL
+                 new_val = current + (target - current) * 0.10
+                 update_gsr_center(new_val, reason="Edge_Pull")
+            
+        # [NEW] Update GSR UI
         # 1. Update Text
         txt_ta_score.set_text(f"INST TA: {latest_gsr_ta:.3f}")
-        txt_count_val.set_text(f"TA Counter: {ta_accum:.2f}") # [NEW] Update Counter
+        txt_count_val.set_text(f"TA Counter: {ta_accum:.2f}") 
+        
+        # [NEW] SYNC SENSITIVITY DISPLAY (Fixes "Never Changed" bug)
+        # This ensures calibration updates and zoom updates are always shown.
+        update_zoom_ui()
         
         # [NEW] Check Motion Status (Anti-Squirm/Velocity)
         # Calculate Speed (TA/sec)
@@ -1660,26 +1617,27 @@ if __name__ == "__main__":
         eff_win = get_effective_window()
 
         if True: # Always update text in Manual Blit mode (it's fast enough)
-             # Scale/Sens Text
-             eff_win = get_effective_window()
-             disp_sens = 99.9 if eff_win <= 0.001 else (1.0 / eff_win)
-             txt_win_val.set_text(f"{disp_sens:.2f}")
+             # Scale/Sens/Span Text is now handled by update_zoom_ui() called earlier in update()
+             pass
 
              # TA SET Label
              if 'txt_ta_set_line' in ui_refs:
                   ui_refs['txt_ta_set_line'].set_text(f"TA SET: {GSR_CENTER_VAL:.2f}")
 
-             # [NEW] Update Grid Labels
+             # [NEW] Update Grid Labels (Log Space)
              # 1 Unit = 20% of Window
-             unit_val = 0.2 * eff_win
+             unit_log = 0.2 * eff_win # eff_win is log height here
+             log_center = math.log10(max(0.01, GSR_CENTER_VAL))
              
              # Hardcoded keys based on initialization
              for u_idx in [2, 1, -1, -2, -3]:
                  key = f'txt_grid_{u_idx}'
                  if key in ui_refs:
-                     delta = u_idx * unit_val
-                     sign = "+" if delta > 0 else ""
-                     ui_refs[key].set_text(f"{sign}{delta:.2f} TA")
+                     target_log = log_center + (u_idx * unit_log)
+                     target_ta = math.pow(10, target_log)
+                     delta_ta = target_ta - GSR_CENTER_VAL
+                     sign = "+" if delta_ta > 0 else ""
+                     ui_refs[key].set_text(f"{sign}{delta_ta:.2f} TA")
 
              # Rec Status (Blink)
              # Use time, not frame count
@@ -1697,22 +1655,23 @@ if __name__ == "__main__":
                        ui_refs['txt_gsr_status'].set_color('red')
              
         # [ALWAYS RUN] Graph Line Logic below...
-        if latest_gsr_ta > 0.01 and booster_level != 0: # Only if valid signal and Boost ON
-            # Recalculate limits for check
-            min_p = GSR_CENTER_VAL - (0.625 * eff_win)
-            max_p = GSR_CENTER_VAL + (0.375 * eff_win)
+        if latest_gsr_ta > 0.01: # Only if valid signal
+            # Recalculate limits for check (Log Space)
+            log_curr = math.log10(latest_gsr_ta)
+            log_center = math.log10(max(0.01, GSR_CENTER_VAL))
             
-            if latest_gsr_ta < min_p or latest_gsr_ta > max_p:
+            min_p_log = log_center - (0.625 * eff_win)
+            max_p_log = log_center + (0.375 * eff_win)
+            
+            if log_curr < min_p_log or log_curr > max_p_log:
                 if is_steady and not is_moving:
                     # Auto-Center
-                    # [REQ] Apply pending Auto-Boost Zoom on Auto-Reset
-                    active_boost_level = booster_level
-                    r_type = "Fall" if latest_gsr_ta < min_p else "Rise"
-                    update_gsr_center(latest_gsr_ta, reason=f"Auto-Reset (Boost-{r_type})")
+                    r_type = "Fall" if log_curr < min_p_log else "Rise"
+                    update_gsr_center(latest_gsr_ta, reason=f"Auto-Reset ({r_type})")
                 else:
                      # Log blocked boost reset
                      if time.time() - last_motion_log > 2.0:
-                         log_msg(f"Motion Detected (Vel={velocity:.1f}, Rng={rng:.2f}) -> Auto-Reset (Boost) BLOCKED")
+                         log_msg(f"Motion Detected (Vel={velocity:.1f}, Rng={rng:.2f}) -> Auto-Reset BLOCKED")
                          last_motion_log = time.time()
             
         if current_view == 'main':
@@ -1793,13 +1752,14 @@ if __name__ == "__main__":
                      raw_ys = np.array(raw_full[::2])
                      
                      if k == 'GSR':
-                          # [FIX] Vectorized Dynamic Normalization (Speedup)
-                          min_p = GSR_CENTER_VAL - (0.625 * eff_win)
-                          max_p = GSR_CENTER_VAL + (0.375 * eff_win)
-                          span_p = max_p - min_p if (max_p - min_p) > 0.001 else 0.001
-                          
-                          # Vectorized Math
-                          ys = (raw_ys - min_p) / span_p * 100.0
+                           # [NEW] Vectorized Logarithmic Normalization
+                           log_raw_ys = np.log10(np.maximum(0.01, raw_ys))
+                           log_center = math.log10(max(0.01, GSR_CENTER_VAL))
+                           log_win = eff_win # get_effective_window returns log height
+                           
+                           min_p_log = log_center - (0.625 * log_win)
+                           # span_p is log_win
+                           ys = (log_raw_ys - min_p_log) / log_win * 100.0
                      else:
                          ys = raw_ys
 
@@ -1866,22 +1826,31 @@ if __name__ == "__main__":
                                   log_msg(f"Calib {calib_step}: Collected Drop={total_drop:.4f}")
                                   active_event_label = f"SQUEEZE_{calib_step}_COLLECTED"
                                  
-                                  # [REQ] Median Logic at End of Step 3
+                                  # [REQ] Log Median Logic at End of Step 3
                                   if calib_step == 3:
                                        # Compute Median
                                        median_drop = sorted(calib_vals)[1] # Middle of 3
-                                       target_win = median_drop / CALIB_TARGET_RATIO
-                                       target_win = max(0.05, min(50.0, target_win))
                                        
-                                       BASE_SENSITIVITY = target_win
-                                       log_msg(f"Calibration Complete: Median Drop={median_drop:.4f} -> Sensitivity={1.0/BASE_SENSITIVITY:.2f}")
-                                       active_event_label = "CALIB_COMPLETE_MEDIAN"
+                                       # NEW LOG FORMULA (Dynamic per User TA)
+                                       # Target: The drop defined by median_drop must equal 45% of screen height
+                                       # Use actual calib_base_ta (the level at the start of the squeeze)
+                                       base_ta = max(0.1, calib_base_ta)
+                                       log_base = math.log10(base_ta)
+                                       log_drop_point = math.log10(max(0.05, base_ta - median_drop))
+                                       log_drop_mag = abs(log_base - log_drop_point)
+                                       
+                                       # LOG_WINDOW_HEIGHT = Mag / 45%
+                                       new_log_win = log_drop_mag / 0.45
+                                       LOG_WINDOW_HEIGHT = max(0.01, min(2.5, new_log_win))
+                                       
+                                       log_msg(f"Calibration Complete: Median Drop={median_drop:.4f} -> LogWindow={LOG_WINDOW_HEIGHT:.4f}")
+                                       active_event_label = "CALIB_COMPLETE_LOG"
                                        
                                        # Update Display
                                        update_gsr_center(latest_gsr_ta, reason="Calib (Final)")
 
-                                  # [REQ] Reset TA (Center Graph) after sensitivity change
-                                  update_gsr_center(latest_gsr_ta, reason="Calib (Resized)")
+                                  # [REQ] Reset TA (Center Graph)
+                                  update_gsr_center(latest_gsr_ta, reason="Calib (Step Complete)")
                              
                                   # Move Next
                                   calib_step += 1
@@ -1933,9 +1902,11 @@ if __name__ == "__main__":
                             is_stable = (time.time() - calib_start_time > 1.5)
                             
                             if is_stable and time_in_phase > 4.0:
-                                # Validate Drop
+                                # Validate Drop (Log Ratio)
                                 total_drop = calib_base_ta - calib_min_ta
-                                ratio = total_drop / BASE_SENSITIVITY
+                                # [MOD] Correct log-drop calculation
+                                log_drop = abs(math.log10(max(0.1, calib_base_ta)) - math.log10(max(0.1, calib_min_ta)))
+                                ratio = log_drop / LOG_WINDOW_HEIGHT
                                 last_calib_ratio = ratio # [DEBUG]
                                 
                                 # [FIX] Strict Range Removed. Any valid drop is OK.
@@ -1948,14 +1919,7 @@ if __name__ == "__main__":
                         elif calib_phase == 2:
                             msg = "CALIB: COMPLETE!"
                             if time.time() - calib_start_time > 2.0: # Show Success for 2s
-                                # [REQ] Restore previous Auto-Boost Level (Primed only)
-                                log_msg(f"Restoring Boost: {saved_boost_level} (Primed)")
-                                # Do NOT call set_boost() as it might force immediate update in some versions or be safe.
-                                # Safest to just set var and update UI.
-                                booster_level = saved_boost_level
-                                update_boost_ui()
-                                # active_boost_level remains 0 (from Start Calibration) until next Reset.
-                                
+   
                                 # [NEW] Auto-Start Recording if Pending
                                 if pending_rec:
                                     pending_rec = False
@@ -2087,8 +2051,6 @@ if __name__ == "__main__":
                 ax_graph.draw_artist(s)
             
             # Draw Scores/Text
-            try: ax_w_val.draw_artist(txt_win_val)
-            except NameError: pass
             try: ax_scores.draw_artist(txt_ta_score)
             except NameError: pass
             try: ax_scores.draw_artist(val_txt)
@@ -2123,12 +2085,29 @@ if __name__ == "__main__":
                 ax_overlay.draw_artist(ui_refs['txt_motion_overlay'])
 
             # [CRITICAL] Draw Buttons Manually so they overlay properly
-            for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer']:
+            for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer', 'btn_calib']:
                  if b_key in ui_refs and ui_refs[b_key].ax.get_visible():
                       b = ui_refs[b_key]
                       b.ax.draw_artist(b.ax.patch) # Background (Normal/Hover)
                       b.ax.draw_artist(b.label)    # Text
             
+            # [NEW] Draw Zoom Slider & Text (BEFORE Blit)
+            if ax_w_val: 
+                # Use ax_w_val.patch to clear bg if needed, or blit if static
+                ax_w_val.draw_artist(ax_w_val.patch)
+                ax_w_val.draw_artist(txt_win_val)
+                if 'txt_span_val' in ui_refs: ax_w_val.draw_artist(ui_refs['txt_span_val'])
+            
+            if 'ax_zoom_track' in ui_refs:
+                 zt = ui_refs['ax_zoom_track']
+                 zt.draw_artist(zt.patch)
+                 zt.draw_artist(ui_refs['rect_track'])
+                 # [NEW] Draw Labels & Ticks
+                 for t in zt.texts: zt.draw_artist(t)
+                 for l in zt.lines: zt.draw_artist(l)
+                 zt.draw_artist(ui_refs['thumb_zoom'])
+                 # [DEBUG] print("Blitting Slider")
+
             # Blit All Regions
             if ax_graph: fig.canvas.blit(ax_graph.bbox)
             if ax_scores: fig.canvas.blit(ax_scores.bbox)
@@ -2137,6 +2116,9 @@ if __name__ == "__main__":
             if ax_status: fig.canvas.blit(ax_status.bbox)
             if ax_detail: fig.canvas.blit(ax_detail.bbox)
             if ax_info: fig.canvas.blit(ax_info.bbox) 
+            if 'ax_calib' in ui_refs: fig.canvas.blit(ui_refs['ax_calib'].bbox) 
+            if 'ax_w_val' in ui_refs: fig.canvas.blit(ui_refs['ax_w_val'].bbox)
+            if 'ax_zoom_track' in ui_refs: fig.canvas.blit(ui_refs['ax_zoom_track'].bbox)
             # [BIO-GRID REMOVED]
             # [CRITICAL] Blit Detached Buttons
             if 'btn_rec' in ui_refs: fig.canvas.blit(ui_refs['btn_rec'].ax.bbox)

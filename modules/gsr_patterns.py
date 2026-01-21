@@ -37,13 +37,12 @@ class GSRPatterns:
         vals_ta = np.array([x[1] for x in self.buffer])
         times = np.array([x[0] for x in self.buffer])
         
-        # --- CONVERT TO INCHES ---
-        # Inches = (TA_Val / Window) * 5.0
-        # Change in Inches = (Change in TA / Window) * 5.0
-        # We process 'vals_ta' relative to the window provided.
-        # NOTE: If window changes mid-buffer, this is imperfect, but acceptable for short 3s window.
-        scale_factor = (self.DIAL_SIZE_INCHES / effective_window)
-        vals_inches = vals_ta * scale_factor
+        # --- CONVERT TO INCHES (LOG SPACE) ---
+        # Inches = (Log10(TA) / LogWindow) * 5.0
+        # This makes pattern detection match visual movement on the Log Graph.
+        log_vals = np.log10(np.maximum(0.01, vals_ta))
+        scale_factor = (self.DIAL_SIZE_INCHES / effective_window) # effective_window is LOG_WINDOW_HEIGHT
+        vals_inches = log_vals * scale_factor
         
         # --- CALCULATE METRICS (IN INCHES) ---
         
