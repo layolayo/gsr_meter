@@ -19,8 +19,8 @@ import json
 import hid
 from typing import Optional, Any
 from modules.audio_handler import AudioHandler
-from modules.ant_driver import AntHrvSensor
-from modules.hrv_state_analyzer import HRVStateAnalyzer
+# from modules.ant_driver import AntHrvSensor
+# from modules.hrv_state_analyzer import HRVStateAnalyzer
 # Pattern Rec
 from modules.gsr_patterns import GSRPatterns 
 from modules.session_viewer import SessionViewer # [NEW]
@@ -55,24 +55,24 @@ bg_status = None
 bg_sens   = None
 bg_info = None # [FIX] Background for System Line
 first_run_center = False # [FIX] Init Auto-Center flag
-bg_grid = None # [NEW] Bio-Grid BG
-bg_grid_txt = None # [NEW] Bio-Grid Text BG
+# bg_grid = None # [NEW] Bio-Grid BG
+# bg_grid_txt = None # [NEW] Bio-Grid Text BG
 
 # [NEW] Dynamic Vector Grid Analysis
 grid_hist_ta = collections.deque(maxlen=150) # 3s @ 50Hz
-grid_hist_hrv = collections.deque(maxlen=150) # 3s @ 50Hz
-grid_hist_hr = collections.deque(maxlen=150) # 3s @ 50Hz
+# grid_hist_hrv = collections.deque(maxlen=150) # 3s @ 50Hz
+# grid_hist_hr = collections.deque(maxlen=150) # 3s @ 50Hz
 prev_quad = None # [NEW] Track Quadrant State for Transitions
 
 # --- HRM GLOBALS ---
 latest_hr = 0
 latest_hrv = 0.0
-hrm_status = "Init"
-hrm_sensor = None
-hrv_analyzer = None # [NEW]
-latest_hrm_state = None # [NEW]
-txt_hr_val = None
-txt_hrv_val = None
+# hrm_status = "Init"
+# hrm_sensor = None
+# hrv_analyzer = None # [NEW]
+# latest_hrm_state = None # [NEW]
+# txt_hr_val = None
+# txt_hrv_val = None
 gsr_patterns = None # [NEW] Engine
 current_pattern = "IDLE"
 
@@ -90,8 +90,7 @@ notes_filename = None
 current_state = "Init"
 ignore_ui_callbacks = False
 headset_on_head = False
-is_connected_prev = False
-prev_grid_state = None
+# dead globals removed
 pattern_hold_until = 0.0
 saved_boost_level = 0 # Moved from local
 
@@ -249,7 +248,6 @@ class GSRReader(threading.Thread):
                     if is_recording and (time.time() - self.last_flush_time) > 1.0:
                         try:
                             if f_gsr: f_gsr.flush()
-                            if f_hrm: f_hrm.flush()
                             self.last_flush_time = time.time()
                         except Exception: pass
 
@@ -383,23 +381,10 @@ def show_manual_popup(event=None):
 
 if __name__ == "__main__":
     # Globals Init
-    f_hrm = None
-    writer_hrm = None
 
     # Start GSR Thread
     gsr_thread = GSRReader()
     gsr_thread.start()
-    
-    # Start HRM Sensor
-    try:
-        hrm_sensor = AntHrvSensor()
-        hrm_sensor.start()
-        # Initialize Analyzer
-        hrv_analyzer = HRVStateAnalyzer()
-        print("[HRM] Sensor Started")
-
-    except Exception as e:
-        print(f"[HRM] Start Error: {e}")  
 
     pass 
     
@@ -544,21 +529,7 @@ if __name__ == "__main__":
                 try: bg_info = fig.canvas.copy_from_bbox(ax_info.bbox)
                 except Exception: pass
             
-            # [NEW] Capture Bio-Grid
-            global bg_grid, bg_grid_txt
-            try: 
-                 if ax_grid: bg_grid = fig.canvas.copy_from_bbox(ax_grid.bbox)
-            except Exception: pass
-            
-            try:
-                 if ax_grid_txt: bg_grid_txt = fig.canvas.copy_from_bbox(ax_grid_txt.bbox)
-            except Exception: pass
-            
-            try:
-                 # [NEW] Capture Arrow
-                 if ax_grid and grid_arrow: 
-                     ax_grid.draw_artist(grid_arrow) 
-            except Exception: pass
+            # [BIO-GRID REMOVED]
             
     fig.canvas.mpl_connect('draw_event', on_draw)
     
@@ -757,204 +728,51 @@ if __name__ == "__main__":
         
     btn_calib.on_clicked(start_calibration)
     
-    # --- 5. BIO-GRID (Start at Bottom) ---
+    # === BIO-GRID (Start at Bottom) ===
     # [FIX] Square Layout Calculation: h = w * (15/9) = 0.13 * 1.666 = 0.217
     # Fits between 0.34 and 0.56
-    r_bio = [0.835, 0.343, 0.13, 0.217] 
-    ax_grid = reg_ax(r_bio, main_view_axes)
-    ax_grid.set_facecolor('#444444')
+    # r_bio = [0.835, 0.343, 0.13, 0.217] 
+    # ax_grid = reg_ax(r_bio, main_view_axes)
+    # ax_grid.set_facecolor('#444444')
     # [req] Force layout to square
     # ax_grid.set_aspect('equal', adjustable='box') # Optional, but rect is calc to be square.
     
-    ax_grid.set_xlim(-6, 6) # Z-Score Range (Expanded)
-    ax_grid.set_ylim(-6, 6)
-    ax_grid.set_xticks([])
-    ax_grid.set_yticks([])
+    # ax_grid.set_xlim(-6, 6) # Z-Score Range (Expanded)
+    # ax_grid.set_ylim(-6, 6)
+    # ax_grid.set_xticks([])
+    # ax_grid.set_yticks([])
     
     # Crosshair
-    ax_grid.axhline(0, color='#888', lw=1, alpha=0.5)
-    ax_grid.axvline(0, color='#888', lw=1, alpha=0.5)
+    # ax_grid.axhline(0, color='#888', lw=1, alpha=0.5)
+    # ax_grid.axvline(0, color='#888', lw=1, alpha=0.5)
     
     # Labels (Small)
     # [NEW] Axis Labels
-    ax_grid.text(0.5, 0.95, "NO CONFRONT", transform=ax_grid.transAxes, ha='center', fontsize=5, color='#ccc')
-    ax_grid.text(0.5, 0.02, "CONFRONT", transform=ax_grid.transAxes, ha='center', fontsize=5, color='#ccc')
-    ax_grid.text(0.03, 0.5, "STRESS", transform=ax_grid.transAxes, va='center', rotation=90, fontsize=5, color='#ff6666')
-    ax_grid.text(0.95, 0.5, "RECOVERY", transform=ax_grid.transAxes, va='center', rotation=-90, fontsize=5, color='#66ff66')
+    # ax_grid.text(0.5, 0.95, "NO CONFRONT", transform=ax_grid.transAxes, ha='center', fontsize=5, color='#ccc')
+    # ax_grid.text(0.5, 0.02, "CONFRONT", transform=ax_grid.transAxes, ha='center', fontsize=5, color='#ccc')
+    # ax_grid.text(0.03, 0.5, "STRESS", transform=ax_grid.transAxes, va='center', rotation=90, fontsize=5, color='#ff6666')
+    # ax_grid.text(0.95, 0.5, "RECOVERY", transform=ax_grid.transAxes, va='center', rotation=-90, fontsize=5, color='#66ff66')
 
     # Q1 (TR): +HRV (Recov), +TA (Rise/Mass) -> DISCONNECT (Safe but Avoidant)
-    ax_grid.text(0.60, 0.87, "DISCONNECT", transform=ax_grid.transAxes, fontsize=6, color='orange', alpha=0.7)
+    # ax_grid.text(0.60, 0.87, "DISCONNECT", transform=ax_grid.transAxes, fontsize=6, color='orange', alpha=0.7)
     
     # Q2 (TL): -HRV (Stress), +TA (Rise/Mass) -> RESISTANCE (Unsafe Avoidance)
-    ax_grid.text(0.13, 0.87, "RESISTANCE", transform=ax_grid.transAxes, fontsize=6, color='#ff4444', alpha=0.7)
+    # ax_grid.text(0.13, 0.87, "RESISTANCE", transform=ax_grid.transAxes, fontsize=6, color='#ff4444', alpha=0.7)
     
     # Q3 (BL): -HRV (Stress), -TA (Fall/Action) -> OVERWHELM (Unsafe Confront)
-    ax_grid.text(0.10, 0.07, "OVERWHELM", transform=ax_grid.transAxes, fontsize=6, color='#aaaaaa', alpha=0.7)
+    # ax_grid.text(0.10, 0.07, "OVERWHELM", transform=ax_grid.transAxes, fontsize=6, color='#aaaaaa', alpha=0.7)
 
     # Q4 (BR): +HRV (Recov), -TA (Fall/Action) -> INTEGRATION (Safe Confront)
-    ax_grid.text(0.60, 0.07, "INTEGRATION", transform=ax_grid.transAxes, fontsize=6, color='#00ff00', alpha=0.7)
+    # ax_grid.text(0.60, 0.07, "INTEGRATION", transform=ax_grid.transAxes, fontsize=6, color='#00ff00', alpha=0.7)
     
     # Moving Dot
-    grid_dot, = ax_grid.plot([], [], 'o', color='purple', markersize=8, markeredgecolor='black')
+    # grid_dot, = ax_grid.plot([], [], 'o', color='purple', markersize=8, markeredgecolor='black')
     
     # Text Below (Shifted Down for Square Grid)
-    ax_grid_txt = reg_ax([0.835, 0.25, 0.13, 0.08], main_view_axes)
-    ax_grid_txt.set_axis_off()
-    txt_grid_state = ax_grid_txt.text(0.5, 0.70, "Waiting...", ha='center', va='center', fontsize=10, fontweight='bold', color='white')
-    txt_grid_trend = ax_grid_txt.text(0.5, 0.30, "--", ha='center', va='center', fontsize=9, color='#888')
-    
-    
-    # [NEW] Vector Arrow (Using Annotation for easy animation)
-    grid_arrow = ax_grid.annotate("", xy=(0,0), xytext=(0,0), arrowprops=dict(arrowstyle="->", color='white', lw=2), zorder=5)
-    
-    # [FIX] Animate Grid Elements
-    grid_dot.set_animated(True)
-    txt_grid_state.set_animated(True)
-    txt_grid_trend.set_animated(True)
-    grid_arrow.set_animated(True)
-    
-    # [NEW] Trend Definitions
-    # [NEW] Trend Definitions (Confront / Physio Synthesis)
-    TREND_MAP = {
-        # Horizontal (HRV: Stress vs Resource)
-        (2, 1): "Bypassing",          (1, 2): "Wall Building",
-        (3, 4): "Integration",        (4, 3): "Overloading",
-        # Vertical (TA: Confront vs No Confront)
-        (1, 4): "Confronting",        (4, 1): "Checking Out",
-        (2, 3): "Collapsing",         (3, 2): "Suppressing",
-        # Diagonal
-        (2, 4): "Breakthrough",       (4, 2): "Rejection",
-        (1, 3): "Crashing",           (3, 1): "Recovery"
-    }
+    # ax_grid_txt = reg_ax([0.835, 0.25, 0.13, 0.08], main_view_axes)
+    # ... (remnants removed)
 
-    def update_grid(d_hrv, d_ta, d_hr=0.0):
-        global prev_quad
-        
-        # Scale Deltas to Grid (-6 to 6)
-        # [FIX] X-Axis is now Delta HR (Heart Rate Change)
-        # Range: +/- 5 BPM -> +/- 6.0 Grid Units
-        # User Feedback: 3 BPM hit the side. Reducing sensitivity.
-        # Old: 1.5. New: 0.75 (Doubles the range to ~8 BPM for max)
-        SCALE_HR = 0.5
-        
-        # [FIX] Increase Scaler for TA to Increase Sensitivity (User Request)
-        # Prev: 25.0, User tried 5.0 (Low). New: 50.0 (High Sensitivity)
-        # Data Analysis: 95% range is +/- 0.11. 50.0 * 0.11 = 5.5 (Perfect fit for 6.0 grid)
-        SCALE_TA = 50.0  # 0.12 Delta -> 6.0 (Max)
-        
-        # X = Delta HR (Right = Rise/Activation, Left = Drop/Orienting)
-        z_x = max(-6.0, min(6.0, d_hr * SCALE_HR))
-        
-        # Y = Delta TA (Up = Arousal/Stress/Rise)
-        z_y = max(-6.0, min(6.0, d_ta * SCALE_TA))
-        
-        grid_dot.set_data([z_x], [z_y])
-        
-        # [NEW] Vector Calculations
-        import math
-        mag = math.sqrt(z_x**2 + z_y**2)
-        angle_rad = math.atan2(z_y, z_x)
-        angle_deg = math.degrees(angle_rad)
-        if angle_deg < 0: angle_deg += 360
-        
-        # Update Arrow (Length scaled down, pointing from Center)
-        # Note: arrow((x,y), dx, dy)
-        arr_len = min(5.0, mag * 0.8) # Don't go off edge
-        if mag < 2.0:
-            grid_arrow.set_visible(False)
-        else:
-            grid_arrow.set_visible(True)
-            grid_arrow.xy = (z_x, z_y)
-            grid_arrow.set_position((0, 0)) # Fixed origin
-        
-        # Determine Quadrant (Standard Cartesian: 1=TR, 2=TL, 3=BL, 4=BR)
-        curr_q = 0
-        state = ""
-        # Base colors (for reference, but overridden by HR delta)
-        # Q1=Green, Q2=Red, Q3=Gray, Q4=Orange
-        
-        # [NEW] Center Dead Zone (33% of Range 6.0 = 2.0)
-        # If signal is weak, consider it "BALANCED" / No Trend
-        if abs(z_x) < 2.0 and abs(z_y) < 2.0:
-             curr_q = 0 # Center
-             state = "BALANCED"
-        else:
-             # Quadrant Logic
-             if z_x >= 0 and z_y >= 0:   curr_q = 1; state = "DISCONNECT"
-             elif z_x < 0 and z_y >= 0:  curr_q = 2; state = "RESISTANCE"
-             elif z_x < 0 and z_y < 0:   curr_q = 3; state = "OVERWHELM"
-             elif z_x >= 0 and z_y < 0:  curr_q = 4; state = "INTEGRATION"
-        
-        # [NEW] COLOR Logic is now Delta HRV (Independent)
-        # Rising HRV (+d_hrv) -> GREEN (Recovery/Capacity)
-        # Lowering HRV (-d_hrv) -> RED (Stress/Load)
-        
-        import matplotlib.colors as mcolors
-        import numpy as np
-        
-        # Sensitivity: 20ms change is "Max Color"
-        hrv_sens = 20.0
-        n_hrv = max(-1.0, min(1.0, d_hrv / hrv_sens))
-        
-        # Interpolate
-        # If n_hrv > 0: White -> Green
-        # If n_hrv < 0: White -> Red
-        
-        c_r = 1.0
-        c_g = 1.0
-        c_b = 1.0
-        
-        if n_hrv > 0:
-             # White (1,1,1) to Green (0,1,0)
-             # R/B fade to 0
-             c_r = 1.0 - n_hrv
-             c_b = 1.0 - n_hrv
-             c_g = 1.0
-        else:
-             # White (1,1,1) to Red (1,0,0)
-             # G/B fade to 0
-             mag_n = abs(n_hrv)
-             c_g = 1.0 - mag_n
-             c_b = 1.0 - mag_n
-             c_r = 1.0
-             
-        grid_dot.set_color((c_r, c_g, c_b))
-        
-        txt_grid_state.set_text(state)
-        
-        # [FIX] Color Text based on Quadrant (Zone)
-        c_text = 'white'
-        if curr_q == 1: c_text = 'orange'
-        elif curr_q == 2: c_text = '#ff6666'
-        elif curr_q == 3: c_text = 'gray'
-        elif curr_q == 4: c_text = '#66ff66'
-        
-        txt_grid_state.set_color(c_text)
-        
-        # Handle State Change & Debounce
-        # If Q changed, hold "Transitioning" or show Trend?
-        
-        # Look up Trend
-        if prev_quad is not None and prev_quad != curr_q and curr_q != 0:
-             pair = (prev_quad, curr_q)
-             if pair in TREND_MAP:
-                  t_str = TREND_MAP[pair]
-                  txt_grid_trend.set_text(t_str)
-                  # [FIX] Blue is hard to read on dark bg. Using Cyan.
-                  txt_grid_trend.set_color('cyan') 
-                  # Hold trend text?
-             prev_quad = curr_q
-        elif curr_q == 0:
-             # In center
-             txt_grid_trend.set_text("--")
-             # [FIX] #444 is too dark. Using #888.
-             txt_grid_trend.set_color('#888')
-             prev_quad = 1 # ? Reset to something ? Or just hold last known valid?
-             # Let's hold prev_quad so if it leaves center back to same, it's not a shift.
-             pass
-        # [NEW] Vector Angle (Optional Display)
-        # angle = math.degrees(math.atan2(z_y, z_x))
-        # mag = math.sqrt(z_x**2 + z_y**2)
+    # [REMOVED BIO-GRID UPDATE LOGIC]
 
 
     
@@ -1196,8 +1014,7 @@ if __name__ == "__main__":
     ax_status.set_facecolor('#333')
     
     txt_gsr_status = ax_status.text(0.02, 0.5, "GSR: ●", color='lightgray', fontsize=11, fontweight='bold', va='center')
-    txt_hrm_status = ax_status.text(0.15, 0.5, "HRM: ●", color='lightgray', fontsize=11, fontweight='bold', va='center')
-    
+
     # [FIX] Init with current Mic Name
     mic_str = "AUDIO: --"
     if 'audio_handler' in globals() and audio_handler.current_mic_name:
@@ -1211,7 +1028,7 @@ if __name__ == "__main__":
     
     # [FIX] Set Animated
     txt_gsr_status.set_animated(True)
-    txt_hrm_status.set_animated(True)
+    # txt_hrm_status.set_animated(True)
     txt_audio.set_animated(True)
     rec_text.set_animated(True)
     ui_refs['rec_text'] = rec_text
@@ -1239,7 +1056,6 @@ if __name__ == "__main__":
 
     def start_actual_recording():
         global is_recording, f_gsr, writer_gsr, recording_start_time
-        global f_hrm, writer_hrm # [NEW] HRM File
         global notes_filename, audio_filename # [FIX] Restored audio_filename
         # [FIX] Audio Globals Removed (Using AudioHandler)
         global pending_rec, pending_notes, session_start_ta, counting_active, ta_accum # [FIX] Globals
@@ -1258,7 +1074,7 @@ if __name__ == "__main__":
              os.makedirs(SESSION_DIR, exist_ok=True)
              
              fname_gsr = os.path.join(SESSION_DIR, "GSR.csv")
-             fname_hrm = os.path.join(SESSION_DIR, "HRM.csv") # [NEW]
+             # fname_hrm = os.path.join(SESSION_DIR, "HRM.csv") # [NEW]
              audio_filename = os.path.join(SESSION_DIR, "Audio.wav") # [FIX] Define Audio Path
 
              notes_filename = os.path.join(SESSION_DIR, "notes.txt")
@@ -1276,12 +1092,6 @@ if __name__ == "__main__":
              
              # (Trend CSV Removed)
 
-             # [NEW] Initialize HRM CSV
-             f_hrm = open(fname_hrm, 'w', newline='')
-             writer_hrm = csv.writer(f_hrm)
-             # Columns: Timestamp, Elapsed, HR_BPM, RMSSD_MS, Raw_RR_MS, State, Trend, Status, Raw_Packet_Hex, Delta_HR, Delta_HRV, Quadrant
-             writer_hrm.writerow(["Timestamp", "Elapsed", "HR_BPM", "RMSSD_MS", "Raw_RR_MS", "State", "Trend", "Status", "Raw_Packet_Hex", "Delta_HR", "Delta_HRV", "Quadrant"])
- 
              is_recording = True 
              # [NEW] Streaming Audio
              audio_handler.start_recording(audio_filename)
@@ -1309,7 +1119,6 @@ if __name__ == "__main__":
     def toggle_rec(_):
         #print("DEBUG: toggle_rec clicked") # [DEBUG]
         global is_recording, f_gsr, writer_gsr, recording_start_time
-        global f_hrm, writer_hrm
         global notes_filename, audio_filename
         global pending_rec, pending_notes, calib_mode, calib_step, calib_phase, calib_start_time, calib_base_ta, calib_min_ta, counting_active
         
@@ -1387,14 +1196,7 @@ if __name__ == "__main__":
                  # fig.canvas.draw_idle() 
                  pass
              except Exception: pass # [FIX] Non-blocking refresh 
-             
-             if f_gsr: 
-                 try: f_gsr.close()
-                 except Exception: pass
-             if f_hrm: 
-                 try: f_hrm.close()
-                 except Exception: pass # [NEW]
-              
+                          
              audio_handler.stop_recording()
              audio_handler.sync_audio_stream(current_view) 
              
@@ -1451,14 +1253,6 @@ if __name__ == "__main__":
     ui_refs['txt_sess_date'] = txt_sess_date
     ui_refs['txt_sess_time'] = txt_sess_time
     ui_refs['txt_sess_len'] = txt_sess_len
-
-    # [NEW] Vitals Display (HR/HRV) - Restored to spare space
-    txt_hr_val = ax_detail.text(0.55, 0.60, "HR: --", ha='left', va='center', fontsize=10, fontweight='bold', color='#ff6666')
-    txt_hrv_val = ax_detail.text(0.55, 0.40, "HRV: --", ha='left', va='center', fontsize=10, fontweight='bold', color='cyan')
-    txt_hr_val.set_animated(True)
-    txt_hrv_val.set_animated(True)
-    ui_refs['txt_hr_val'] = txt_hr_val
-    ui_refs['txt_hrv_val'] = txt_hrv_val
 
     r_ts = [0.05, 0.06, 0.12, 0.05]
     ax_to_set = reg_ax(r_ts, main_view_axes)
@@ -1736,9 +1530,9 @@ if __name__ == "__main__":
         global headset_on_head, BASE_SENSITIVITY, saved_boost_level, booster_level
         global calib_mode, calib_phase, calib_step, calib_start_time, calib_step_start_time, calib_base_ta, calib_min_ta, calib_vals, last_calib_ratio
         global recording_start_time, is_recording, session_start_ta, pending_rec
-        global latest_hr, latest_hrv, hrm_status, active_event_label, is_connected_prev, prev_grid_state
+        global active_event_label
         global first_run_center # [FIX] Add global
-        global graph_bg, bg_scores, bg_count, bg_detail, bg_status, bg_sens, bg_info, bg_grid, bg_grid_txt
+        global graph_bg, bg_scores, bg_count, bg_detail, bg_status, bg_sens, bg_info
         
         # [NEW] Manual Blit Restore (Main View Only)
         if current_view == 'main':
@@ -1750,8 +1544,8 @@ if __name__ == "__main__":
                 if bg_status: fig.canvas.restore_region(bg_status)
                 if bg_sens:   fig.canvas.restore_region(bg_sens)
                 if bg_info:   fig.canvas.restore_region(bg_info)
-                if bg_grid:   fig.canvas.restore_region(bg_grid)
-                if bg_grid_txt: fig.canvas.restore_region(bg_grid_txt)
+                # if bg_grid:   fig.canvas.restore_region(bg_grid)
+                # if bg_grid_txt: fig.canvas.restore_region(bg_grid_txt)
             except Exception: pass
 
         if not first_run_center and latest_gsr_ta > 0.1:
@@ -1792,148 +1586,21 @@ if __name__ == "__main__":
                  except Exception: pass
                  finally: ignore_ui_callbacks = False
         
-        # [NEW] Poll HRM before System Line
-        h_stat = "Disabled"
-        h_batt_str = ""
-        s_state = "Init"
-        s_trend = "-"
-        s_intens = "-"
+        # [REMOVED HRM LOGIC]
+        # System Line (Mic Only)
+        sys_parts = [f"Mic: {audio_handler.current_mic_name}"]
+        system_line.set_text(" | ".join(sys_parts))
         
-        if hrm_sensor:
-            # Poll data
-            h_data = hrm_sensor.get_data()
-            latest_hr = h_data['bpm']
-            latest_hrv = h_data['rmssd']
-            h_stat = h_data['status']
-            
-            # [NEW] HRM Battery Info
-            batt_v = h_data.get('battery_volts')
-            batt_st = h_data.get('battery_state', 'Unknown')
-            if batt_v:
-                h_batt_str = f" | 🔋 {batt_v}V ({batt_st})"
-            
-            # [NEW] Analyze State
-            analyzer_res = {}
-            if hrv_analyzer and h_stat == "Active":
-                analyzer_res = hrv_analyzer.update(latest_hr, latest_hrv)
-                latest_hrm_state = analyzer_res
-
-            s_state = analyzer_res.get('state', 'Init') # [FIX] Use safe get
-            s_trend = analyzer_res.get('trend', '-')
-            s_intens = analyzer_res.get('intensity', '-')
-            
-            # [NEW] Balanced State Logic
-            if s_intens == "Low":
-                s_state = "BALANCED"
-
-        # [NEW] Dynamic Grid Update
-        global grid_hist_ta, grid_hist_hrv, grid_hist_hr
-        
-        # Push current values (Looser Threshold)
-        if latest_gsr_ta > 0.1: grid_hist_ta.append(latest_gsr_ta)
-        if latest_hrv >= 0.0: grid_hist_hrv.append(latest_hrv) # [FIX] Allow 0.0
-        if latest_hr > 30: grid_hist_hr.append(float(latest_hr)) # [NEW] Track HR
-        
-        # Need at least ~1 sec history (50 frames) for stable delta
-        if len(grid_hist_ta) > 50 and len(grid_hist_hrv) > 50:
-             # Delta = Current (Avg of last 10) - Previous (Avg of first 10)
-             
-             # TA
-             curr_ta = sum(list(grid_hist_ta)[-10:]) / 10.0
-             prev_ta = sum(list(grid_hist_ta)[0:10]) / 10.0
-             d_ta = curr_ta - prev_ta
-             
-             # [NEW] Update Global for CSV
-             global latest_d_ta
-             latest_d_ta = d_ta
-             
-             # HRV
-             curr_hrv = sum(list(grid_hist_hrv)[-10:]) / 10.0
-             prev_hrv = sum(list(grid_hist_hrv)[0:10]) / 10.0 
-             d_hrv = curr_hrv - prev_hrv
-
-             # [NEW] HR Delta
-             d_hr = 0.0
-             if len(grid_hist_hr) > 50:
-                  curr_hr = sum(list(grid_hist_hr)[-10:]) / 10.0
-                  prev_hr = sum(list(grid_hist_hr)[0:10]) / 10.0
-                  d_hr = curr_hr - prev_hr
-             
-             # Call Update
-             if 'update_grid' in globals():
-                  update_grid(d_hrv, d_ta, d_hr)
-        # System Line
-        sys_parts = []
-        sys_parts.append(f"Mic: {audio_handler.current_mic_name}")
-        
-        if 'h_stat' in locals() and h_stat == "Active":
-             manuf = h_data.get('manufacturer', 'Unknown')
-             serial = h_data.get('serial')
-             
-             ant_str = f"❌ {manuf}"
-             if serial:
-                  ant_str = f"✅ {manuf} #{serial}"
-             
-             batt = h_batt_str if 'h_batt_str' in locals() else ""
-             sys_parts.append(f"📡 - HRM: {h_stat} | {ant_str}{batt}")
-             
-        s_str = " | ".join(sys_parts)
-        system_line.set_text(s_str)
-        
-        # [NEW] Update HRM Top Status Bar (Minimal Dot)
-        if hrm_sensor:
-            if h_stat == "Active":
-                 txt_hrm_status.set_color('#009900')
-                 txt_hrm_status.set_text(f"HRM: ●") 
-            else:
-                 # Color logic for non-active states
-                 if h_stat == "Initializing": 
-                     txt_hrm_status.set_color('lightgray')
-                 elif h_stat == "Signal Lost":
-                     txt_hrm_status.set_color('orange')
-                 elif "Error" in h_stat:
-                     txt_hrm_status.set_color('red')
-                 else:
-                     txt_hrm_status.set_color('yellow')
-                 
-                 # Always show Dot as requested
-                 txt_hrm_status.set_text("HRM: ●")
-            
-            # Update Detail Panel
-            if 'txt_hr_val' in ui_refs:
-                 ui_refs['txt_hr_val'].set_text(f"HR: {latest_hr}")
-                 # [Clean] Removed Trend/Intensity Text
-                 ui_refs['txt_hrv_val'].set_text(f"HRV: {int(latest_hrv)}ms")
-
-            # [NEW] Log to HRM CSV if Recording
-            if is_recording and hrm_sensor:
-                try:
-                    ts_hrm = datetime.now().strftime('%H:%M:%S.%f')[:-3]
-                    rr_val = h_data.get('rr_ms', 0)
-                    raw_rr = h_data.get('raw_rr_ms', 0)
-                    raw_hex = h_data.get('raw_hex', '')
-                    
-                    if writer_hrm and h_stat == "Active":
-                        # Timestamp, HR_BPM, RMSSD_MS, Raw_RR_MS, State, Trend, Status, Raw_Packet_Hex
-                        # Use Analyzer Output for State and Trend
-                        log_state = f"{s_state}:{s_intens}"
-                        
-                        # [FIX] Use Defined Deltas (d_hr, d_hrv) instead of Z
-                        # Use variables from current scope (calculated above in Main Loop)
-                        # Ensure d_hr/d_hrv are defined (initialized to 0.0 if loop skipped)
-                        # d_hr = 0.0 (Init above), d_hrv (Init above)
-                        
-                        quad_log = analyzer_res.get('quadrant', 0)
-                        
-                        elapsed = 0.0
-                        if recording_start_time:
-                             elapsed = (datetime.now() - recording_start_time).total_seconds()
-                        
-                        writer_hrm.writerow([ts_hrm, f"{elapsed:.3f}", latest_hr, int(latest_hrv), raw_rr, log_state, s_trend, h_stat, raw_hex, f"{d_hr:.3f}", f"{d_hrv:.3f}", quad_log])
-                except Exception: pass
-
-        else:
-            txt_hrm_status.set_color('gray')
+        # [NEW] Rolling TA Set (7-10s Mean/Median)
+        if latest_gsr_ta > 0.1 and not calib_mode:
+            # Use last 480 samples (~8 seconds)
+            history_rolling = list(bands_history['GSR'])[-480:]
+            if len(history_rolling) > 60: # Need some history
+                rolling_median = float(np.median(history_rolling))
+                
+                # Update Center via centralized function to handle TA Counter logic
+                # We do this every frame for smooth tracking
+                update_gsr_center(rolling_median, reason="System")
             
         # [Moved] Update GSR UI
         # 1. Update Text
@@ -2153,35 +1820,7 @@ if __name__ == "__main__":
              bar_level[0].set_width(0)
              ui_refs['text_level'].set_text("OFF")
 
-        # [NEW] Add Auto-Center Check to end of loop
-        if not calib_mode and current_view == 'main':
-             # [FIX] global motion_lock_expiry moved to top
-             
-             eff_win = get_effective_window()
-             min_p = GSR_CENTER_VAL - (0.625 * eff_win)
-             max_p = GSR_CENTER_VAL + (0.375 * eff_win)
-             
-             if latest_gsr_ta < min_p or latest_gsr_ta > max_p:
-                 # Only if valid signal
-                 if latest_gsr_ta > 0.1:
-                      # [REQ] Motion Lock (Anti-Squirm)
-                      # If signal is jumping (Range > 0.2 over last 1s), DO NOT Rescale/Recenter.
-                      # This prevents "crazy" sensitivity during motion artifacts.
-                      if time.time() > motion_lock_expiry and is_steady:
-                            if latest_gsr_ta < min_p: 
-                                active_event_label = "DROP_TA_RESET"
-                                reason_str = "Auto-Reset (Fall)"
-                            else: 
-                                active_event_label = "RISE_TA_RESET"
-                                reason_str = "Auto-Reset (Rise)"
-                            update_gsr_center(latest_gsr_ta, reason=reason_str)
-                      else:
-                           # [REQ] Log Motion Block (Throttled)
-                           
-                           if time.time() - last_motion_log > 2.0:
-                               log_msg(f"Motion Detected (Vel={velocity:.1f}, Rng={rng:.2f}) -> Auto-Reset BLOCKED")
-                               last_motion_log = time.time()
-                               active_event_label = "MOTION_BLOCKING_RESET"
+        # [REMOVED OLD AUTO-CENTER CHECK - Now handled by Rolling Median]
 
         if current_view == 'main':
              pass
@@ -2465,8 +2104,7 @@ if __name__ == "__main__":
             
             # Draw Status
             if 'txt_gsr_status' in ui_refs: ax_status.draw_artist(ui_refs['txt_gsr_status'])
-            try: ax_status.draw_artist(txt_hrm_status)
-            except NameError: pass
+            # [HRM REMOVED]
             try: ax_status.draw_artist(txt_audio)
             except NameError: pass
             try: ax_status.draw_artist(rec_text)
@@ -2474,19 +2112,8 @@ if __name__ == "__main__":
             
             # Draw Detail Panel Info
             if 'txt_sess_len' in ui_refs: ax_detail.draw_artist(ui_refs['txt_sess_len'])
-            if 'txt_hr_val' in ui_refs: ax_detail.draw_artist(ui_refs['txt_hr_val'])
-            if 'txt_hrv_val' in ui_refs: ax_detail.draw_artist(ui_refs['txt_hrv_val'])
             
-            # Draw Bio-Grid
-            try: ax_grid.draw_artist(grid_dot)
-            except Exception: pass
-            try: ax_grid.draw_artist(grid_arrow)
-            except Exception: pass
-            
-            try: 
-                 ax_grid_txt.draw_artist(txt_grid_state)
-                 ax_grid_txt.draw_artist(txt_grid_trend)
-            except Exception: pass
+            # [BIO-GRID REMOVED]
             if 'txt_pattern' in ui_refs: ax_graph.draw_artist(ui_refs['txt_pattern'])
 
             # [NEW] Draw Overlays (Calibration / Motion)
@@ -2510,9 +2137,7 @@ if __name__ == "__main__":
             if ax_status: fig.canvas.blit(ax_status.bbox)
             if ax_detail: fig.canvas.blit(ax_detail.bbox)
             if ax_info: fig.canvas.blit(ax_info.bbox) 
-            # [FIX] Bio-Grid Blit
-            if ax_grid: fig.canvas.blit(ax_grid.bbox)
-            if ax_grid_txt: fig.canvas.blit(ax_grid_txt.bbox)
+            # [BIO-GRID REMOVED]
             # [CRITICAL] Blit Detached Buttons
             if 'btn_rec' in ui_refs: fig.canvas.blit(ui_refs['btn_rec'].ax.bbox)
             if 'btn_to_settings' in ui_refs and ui_refs['btn_to_settings'].ax.get_visible(): 
@@ -2556,13 +2181,7 @@ if __name__ == "__main__":
              try: f_gsr.close()
              except Exception: pass
 
-        # [NEW] Stop HRM and Close File
-        if hrm_sensor:
-             try: hrm_sensor.stop()
-             except Exception: pass
-        if f_hrm: 
-             try: f_hrm.close()
-             except Exception: pass
+        # [HRM REMOVED]
              
         if 'audio_handler' in globals() and audio_handler.audio_stream:
              audio_handler.audio_stream.close()

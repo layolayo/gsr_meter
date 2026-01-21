@@ -6,7 +6,7 @@ import os
 import sys
 
 # --- Configuration ---
-SESSION_ROOT = "/home/matthew/PycharmProjects/BrainCo/Session_Data"
+SESSION_ROOT = "/home/matthew/PycharmProjects/gsr_meter/Session_Data"
 
 def get_latest_session():
     """Finds the most recently created Session directory."""

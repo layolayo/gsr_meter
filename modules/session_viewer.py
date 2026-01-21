@@ -426,7 +426,7 @@ class SessionViewer:
                 c_val = row['Center']; has_meta = True
             elif 'TA SET' in row:
                 c_val = row['TA SET']; has_meta = True
-            
+                            
             if 'Window' in row: 
                 w_val = row['Window']; has_meta = True
             elif 'Win' in row:
