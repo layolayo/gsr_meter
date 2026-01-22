@@ -1285,10 +1285,12 @@ if __name__ == "__main__":
         canvas_widget = fig.canvas.get_tk_widget()
         canvas_widget.pack(fill=tk.BOTH, expand=True)
         
-        # 3. Resume Audio
+        # 3. Stop any playback audio and resume live audio
         log_msg("Resuming Live Mode...")
         try:
-             # Ensure stream is synced/started for main view
+             # Stop playback first
+             audio_handler.stop_playback()
+             # Then ensure stream is synced/started for main view
              audio_handler.sync_audio_stream('main') 
         except Exception as e: print(f"Audio Resume Err: {e}")
         
@@ -1976,10 +1978,24 @@ if __name__ == "__main__":
 
 
     def on_close(event):
-        global app_running
+        global app_running, sess_viewer, current_view
         if not app_running: return 
         app_running = False
         print("Window Close Event Triggered.")
+        
+        # [NEW] Clean up session viewer if active
+        if current_view == 'viewer' and sess_viewer:
+            try:
+                sess_viewer.is_playing = False
+                sess_viewer.stop_playback(reset=True)
+                if sess_viewer.timer_id:
+                    sess_viewer.master.after_cancel(sess_viewer.timer_id)
+                    sess_viewer.timer_id = None
+                # Close matplotlib figure
+                if hasattr(sess_viewer, 'fig') and sess_viewer.fig:
+                    plt.close(sess_viewer.fig)
+            except: pass
+        
         try:
              # Stop timer immediately
              if 'timer' in locals() and timer:

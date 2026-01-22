@@ -138,6 +138,12 @@ class SessionViewer:
             self.stop_playback(reset=True)
         except: pass
         
+        # [NEW] Clean up matplotlib resources
+        try:
+            if hasattr(self, 'fig') and self.fig:
+                plt.close(self.fig)
+        except: pass
+        
         # Call the parent callback to return to main view
         if self.on_close_callback:
             self.on_close_callback()
