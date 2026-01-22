@@ -1502,6 +1502,11 @@ if __name__ == "__main__":
         if current_view != desired_view:
             if desired_view == 'settings': 
                 teleport_off(main_view_axes); teleport_on(settings_view_axes)
+                # [NEW] Initialize mic name display with current selection
+                if audio_handler and audio_handler.current_mic_name:
+                    ui_refs['text_mic_name'].set_text(audio_handler.current_mic_name)
+                else:
+                    ui_refs['text_mic_name'].set_text("NO MIC")
             elif desired_view == 'main': 
                 teleport_off(settings_view_axes); teleport_on(main_view_axes)
                 # [FIX] Force clean draw to clear Settings artifacts from buffer
