@@ -118,6 +118,16 @@ class SessionViewer:
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         self.graph_frame.bind("<Configure>", self.on_resize) 
         
+        # [NEW] Seek Buttons Frame (Under Minimap)
+        seek_frame = tk.Frame(left_panel, bg='#222', height=40)
+        seek_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+        
+        tk.Button(seek_frame, text="<< -5sec", command=self.seek_backward,
+                  bg='#444', fg='white', width=10).pack(side=tk.LEFT, padx=50, expand=True)
+        
+        tk.Button(seek_frame, text="+ 5sec >>", command=self.seek_forward,
+                  bg='#444', fg='white', width=10).pack(side=tk.RIGHT, padx=50, expand=True)
+
         # [NEW] Interactive Minimap
         self.canvas.mpl_connect('button_press_event', self.on_plot_click)
 
@@ -447,10 +457,32 @@ class SessionViewer:
         was_playing = self.is_playing
         if was_playing:
             self.stop_playback(reset=False)
-        self.playback_offset = float(val)
+        self.playback_offset = float(max(0, min(val, self.audio_len_sec)))
         self.update_plot(self.playback_offset)
         if was_playing:
             self.start_playback()
+
+    def seek_backward(self):
+        """Jump back 5 seconds"""
+        if self.df is None: return
+        # Need to handle elapsed time during playback
+        curr = self.get_current_time()
+        target = max(0, curr - 5.0)
+        self.perform_seek(target)
+
+    def seek_forward(self):
+        """Jump forward 5 seconds"""
+        if self.df is None: return
+        curr = self.get_current_time()
+        target = min(self.audio_len_sec, curr + 5.0)
+        self.perform_seek(target)
+
+    def get_current_time(self):
+        """Helper to get current logical time regardless of playback state"""
+        if self.is_playing:
+            elapsed = time.time() - self.start_time
+            return self.playback_offset + elapsed
+        return self.playback_offset
 
     def animate(self):
         # [FIX] Check global app_running status if available
