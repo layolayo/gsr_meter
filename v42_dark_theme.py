@@ -766,7 +766,6 @@ if __name__ == "__main__":
         # [NEW] Reset Zoom on Calibration
         ZOOM_COEFFICIENT = 1.0
         update_zoom_ui()
-        #plt.draw() 
         
         calib_mode = True
         calib_phase = 0

@@ -96,20 +96,6 @@ class SessionViewer:
         self.graph_frame = tk.Frame(left_panel, bg='black')
         self.graph_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True) 
         
-        slider_frame = tk.Frame(left_panel, bg='#222', height=40)
-        slider_frame.pack(side=tk.BOTTOM, fill=tk.X)
-        
-        tk.Label(slider_frame, text="Audio/Time:", bg='#222', fg='#aaa', font=('Arial', 8)).pack(side=tk.LEFT, padx=5)
-        
-        self.slider = tk.Scale(slider_frame, from_=0, to=100, orient=tk.HORIZONTAL, showvalue=0,
-                               resolution=0.1, bg='#222', fg='white', troughcolor='#444', 
-                               activebackground='#004488', highlightthickness=0)
-        self.slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=5)
-        
-        self.slider.bind("<ButtonPress-1>", self.on_slider_press)
-        self.slider.bind("<ButtonRelease-1>", self.on_slider_release)
-        # [NEW] Real-time drag update
-        self.slider.config(command=self.on_slider_drag)
 
         tk.Label(right_panel, text="Session Notes", font=('Arial', 10, 'bold'), bg='#333', fg='white').pack(pady=5)
         self.txt_notes = scrolledtext.ScrolledText(right_panel, height=20, width=30, wrap=tk.WORD, bg='#222', fg='white', insertbackground='white')
@@ -185,11 +171,15 @@ class SessionViewer:
         self.ax.set_xlim(-WINDOW_PAST, WINDOW_FUTURE)
         self.ax.set_ylim(-5, 105) # [MOD] Fixed linear display space
         
-        self.ax.set_title("GSR Zoomed (-7s to +3s)", fontsize=12, fontweight='bold', color='white')
+        self.ax.set_title("EK GSR Session Viewer (Click Minimap to Seek)", fontsize=12, fontweight='bold', color='white')
         
+        # [NEW] Time-based X-axis labels (mm:ss format)
         ticks = list(range(int(-WINDOW_PAST), int(WINDOW_FUTURE)+1))
         self.ax.set_xticks(ticks)
         self.ax.tick_params(axis='x', colors='lightgray', labelsize=8)
+        
+        # Format labels as mm:ss relative to current time
+        # We'll update these dynamically in update_plot
         self.ax.set_xticklabels([str(x) if x != 0 else "NOW" for x in ticks])
 
         self.ax.grid(True, which='major', color='#222', linestyle='-', linewidth=0.5, alpha=0.3)
@@ -258,7 +248,6 @@ class SessionViewer:
         if event.inaxes == self.ax_mini:
              x_val = event.xdata
              if x_val is not None:
-                 self.slider.set(x_val)
                  self.perform_seek(x_val)
 
     def load_session(self):
@@ -328,8 +317,7 @@ class SessionViewer:
             self.txt_notes.delete('1.0', tk.END)
             self.txt_notes.insert(tk.END, content)
 
-            self.slider.config(to=self.audio_len_sec)
-            self.slider.set(0)
+            self.playback_offset = 0
             self.playback_offset = 0
             self.init_plot()
             
@@ -377,23 +365,15 @@ class SessionViewer:
         except: pass
         if reset:
             self.playback_offset = 0
-            self.slider.set(0)
             self.update_plot(0)
 
-    def on_slider_press(self, event):
-        self.is_dragging = True
-
     def on_slider_release(self, event):
-        self.is_dragging = False
-        val = self.slider.get()
-        self.perform_seek(val)
+        # Slider removed, method kept for compatibility
+        pass
 
     def on_slider_drag(self, val):
-        # [NEW] Real-time updates for Minimap Cursor
-        # Avoid full redraw of main graph if possible?
-        # For now, just call update_plot, performance should be ok.
-        if self.is_dragging:
-             self.update_plot(float(val))
+        # Slider removed, method kept for compatibility
+        pass
 
     def perform_seek(self, val):
         was_playing = self.is_playing
@@ -420,9 +400,7 @@ class SessionViewer:
             self.stop_playback(reset=True)
             return
             
-        if not self.is_dragging:
-            self.slider.set(current_time)
-            
+        # Update plot
         self.update_plot(current_time)
         if self.is_playing:
              self.timer_id = self.master.after(UPDATE_INTERVAL_MS, self.animate)
@@ -435,6 +413,19 @@ class SessionViewer:
         self.lbl_time.config(text=f"{t_str} / {tot_str}")
 
         if self.df is None or self.time_index is None: return
+        
+        # [NEW] Update X-axis labels with mm:ss format
+        ticks = list(range(int(-WINDOW_PAST), int(WINDOW_FUTURE)+1))
+        labels = []
+        for offset in ticks:
+            abs_time = current_time + offset
+            if offset == 0:
+                labels.append("NOW")
+            else:
+                mins = int(abs_time) // 60
+                secs = int(abs_time) % 60
+                labels.append(f"{mins:02}:{secs:02}")
+        self.ax.set_xticklabels(labels)
 
         # 1. Update Zoomed Graph
         win_start = current_time - WINDOW_PAST

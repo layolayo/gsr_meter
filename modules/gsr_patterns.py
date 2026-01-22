@@ -77,13 +77,13 @@ class GSRPatterns:
 
         # Priority 2: Stuck Needle (Updated: 3.0s, Tight)
         # User: "Time wasn't long enough / Sensitivity too much" -> Harder to trigger.
-        idx_stuck = max(0, len(vals_inches) - int(self.fs * 3.0))
-        var_win_stuck = vals_inches[idx_stuck:]
-        if len(var_win_stuck) > self.fs * 2.5: # Ensure we have enough data
-             amp_stuck = np.max(var_win_stuck) - np.min(var_win_stuck)
-             # [MOD] Tightened to 0.02 inches (Literally no movement)
-             if amp_stuck < 0.02: 
-                  return "" # Was STUCK
+        #idx_stuck = max(0, len(vals_inches) - int(self.fs * 3.0))
+        #var_win_stuck = vals_inches[idx_stuck:]
+        #if len(var_win_stuck) > self.fs * 2.5: # Ensure we have enough data
+        #     amp_stuck = np.max(var_win_stuck) - np.min(var_win_stuck)
+        #     # [MOD] Tightened to 0.02 inches (Literally no movement)
+        #     if amp_stuck < 0.02: 
+        #          return "" # Was STUCK
 
         # Priority 3: Trends vs Reads (Velocity Dependent)
         # User: "Steady falls are just falls... sudden are short/long"
