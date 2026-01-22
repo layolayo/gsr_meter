@@ -23,7 +23,7 @@ from modules.audio_handler import AudioHandler
 # from modules.hrv_state_analyzer import HRVStateAnalyzer
 # Pattern Rec
 from modules.gsr_patterns import GSRPatterns 
-from session_viewer import SessionViewer # [NEW]
+from modules.session_viewer import SessionViewer # [NEW]
 
 # File Naming
 CONFIG_FILE = "v42_config.json"
@@ -406,9 +406,24 @@ if __name__ == "__main__":
     pass 
     
     # --- GUI ---
+    plt.rcParams['toolbar'] = 'None' # [NEW] Hide Matplotlib navigation controls
     fig = plt.figure(figsize=(15, 9), facecolor='#2b2b2b') 
     try: fig.canvas.manager.set_window_title("EK GSR/HRM Session Monitor (v42 Dark Viewer)")
     except Exception: pass 
+    
+    # [NEW] Start Maximized/Fullscreen (Linux Compatibility)
+    try:
+        mngr = plt.get_current_fig_manager()
+        # TkAgg/Linux
+        try: 
+            mngr.window.attributes('-zoomed', True)
+            mngr.window.update() # [NEW] Force Tkinter update
+        except: 
+             try: 
+                 mngr.window.state('zoomed') # Windows fallback
+                 mngr.window.update()
+             except: pass
+    except: pass
     
     plt.subplots_adjust(left=0.05, right=0.98, top=0.93, bottom=0.05)
     
@@ -1222,9 +1237,21 @@ if __name__ == "__main__":
     r_ts = [0.85, 0.425, 0.10, 0.04]
     ax_to_set = reg_ax(r_ts, main_view_axes)
     ui_refs['btn_to_settings'] = Button(ax_to_set, "Settings >", color='#444444', hovercolor='#666666')
-    ui_refs['btn_to_settings'].label.set_color('white') #'#eee'
+    ui_refs['btn_to_settings'].label.set_color('white')
     ui_refs['btn_to_settings'].ax.patch.set_animated(True)
     ui_refs['btn_to_settings'].label.set_animated(True)
+    # [NEW] Exit Button (Bottom Right, Aligned with column)
+    r_exit = [0.85, 0.025, 0.10, 0.04] 
+    ax_exit = reg_ax(r_exit, main_view_axes)
+    ax_exit.set_zorder(100)
+    ui_refs['btn_exit'] = Button(ax_exit, "EXIT", color='#A00', hovercolor='#F00')
+    ui_refs['btn_exit'].label.set_color('white')
+    ui_refs['btn_exit'].label.set_fontsize(11) 
+    ui_refs['btn_exit'].label.set_fontweight('bold')
+    ui_refs['btn_exit'].ax.patch.set_animated(True)
+    ui_refs['btn_exit'].label.set_animated(True)
+    ui_refs['btn_exit'].on_clicked(lambda e: os._exit(0)) # Force Hard Exit
+
     # VIEW LOGIC
     viewer_frame = None
     sess_viewer = None
@@ -2085,7 +2112,7 @@ if __name__ == "__main__":
                 ax_overlay.draw_artist(ui_refs['txt_motion_overlay'])
 
             # Draw Buttons
-            for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer', 'btn_calib']:
+            for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer', 'btn_calib', 'btn_exit']:
                  if b_key in ui_refs and ui_refs[b_key].ax.get_visible():
                       b = ui_refs[b_key]
                       b.ax.draw_artist(b.ax.patch)
@@ -2124,6 +2151,7 @@ if __name__ == "__main__":
             if 'btn_manual' in ui_refs and ui_refs['btn_manual'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_manual'].ax.bbox)
             if 'btn_viewer' in ui_refs and ui_refs['btn_viewer'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_viewer'].ax.bbox)
             if 'btn_back' in ui_refs and ui_refs['btn_back'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_back'].ax.bbox)
+            if 'btn_exit' in ui_refs and ui_refs['btn_exit'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_exit'].ax.bbox)
             
             fig.canvas.flush_events()
 
@@ -2138,6 +2166,16 @@ if __name__ == "__main__":
         original_update = update
         def update_wrapper(frame=0):
              if not app_running: return
+             
+             # [NEW] One-shot Fullscreen/Maximize
+             global first_run_zoomed
+             if 'first_run_zoomed' not in globals():
+                 first_run_zoomed = True
+                 try:
+                     mngr = plt.get_current_fig_manager()
+                     try: mngr.window.attributes('-zoomed', True)
+                     except: mngr.window.state('zoomed')
+                 except: pass
              try:
                  original_update(frame)
                  final_blit()

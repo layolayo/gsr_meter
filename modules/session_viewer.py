@@ -84,6 +84,10 @@ class SessionViewer:
         
         self.lbl_file = tk.Label(toolbar, text="No File Loaded", bg='#444', fg='#ccc')
         self.lbl_file.pack(side=tk.LEFT, padx=5)
+        
+        # [NEW] Exit App Button (Far Right)
+        tk.Button(toolbar, text="EXIT APP", command=lambda: os._exit(0), 
+                  bg='#880000', fg='white', font=('Arial', 10, 'bold')).pack(side=tk.RIGHT, padx=10, pady=5)
 
         # Controls
         tk.Frame(toolbar, width=20, bg='#444').pack(side=tk.LEFT)
@@ -130,7 +134,7 @@ class SessionViewer:
                                 command=self.update_minimap_markers)
             cb.pack(anchor=tk.W)
             self.pattern_checkboxes[p] = cb # [NEW] Store reference
-        
+        plt.rcParams['toolbar'] = 'None' # [NEW] Hide Matplotlib navigation controls
         self.fig = plt.figure(figsize=(10, 8), dpi=100)
         self.fig.patch.set_facecolor('#222222') # [MOD] Matches UI background
         
