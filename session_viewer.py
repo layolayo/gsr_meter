@@ -69,7 +69,7 @@ class SessionViewer:
 
     def setup_gui(self):
         # --- Toolbar (Top) ---
-        toolbar = tk.Frame(self.master, height=40, bg='#333333')
+        toolbar = tk.Frame(self.master, height=40, bg='#444444') # [MOD] Lighter gray for separation
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=0, pady=0)
 
         # Back
@@ -80,11 +80,11 @@ class SessionViewer:
         tk.Button(toolbar, text="Load GSR.csv", command=self.load_session, 
                   bg='#004488', fg='white').pack(side=tk.LEFT, padx=5)
         
-        self.lbl_file = tk.Label(toolbar, text="No File Loaded", bg='#333', fg='#ccc')
+        self.lbl_file = tk.Label(toolbar, text="No File Loaded", bg='#444', fg='#ccc')
         self.lbl_file.pack(side=tk.LEFT, padx=5)
 
         # Controls
-        tk.Frame(toolbar, width=20, bg='#333').pack(side=tk.LEFT)
+        tk.Frame(toolbar, width=20, bg='#444').pack(side=tk.LEFT)
         
         # [MOD] Play button and Timer moved to bottom
 
@@ -96,14 +96,14 @@ class SessionViewer:
         left_panel = tk.Frame(main_content, bg='#222') 
         left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        right_panel = tk.Frame(main_content, width=250, bg='#333')
+        right_panel = tk.Frame(main_content, width=250, bg='#222') # [MOD] Unified background
         right_panel.pack(side=tk.LEFT, fill=tk.Y)
         
         self.graph_frame = tk.Frame(left_panel, bg='#222') # [MOD] Matches panel background
         self.graph_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True) 
         
 
-        tk.Label(right_panel, text="Session Notes", font=('Arial', 10, 'bold'), bg='#333', fg='white').pack(pady=5)
+        tk.Label(right_panel, text="Session Notes", font=('Arial', 10, 'bold'), bg='#222', fg='white').pack(pady=(0, 5))
         self.txt_notes = scrolledtext.ScrolledText(right_panel, width=30, wrap=tk.WORD, bg='#222', fg='white', insertbackground='white')
         self.txt_notes.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
@@ -112,17 +112,17 @@ class SessionViewer:
 
         # [NEW] Pattern Selection Box (Moved to bottom)
         tk.Frame(right_panel, height=2, bg='#444').pack(fill=tk.X, pady=10)
-        tk.Label(right_panel, text="Pattern Highlights", font=('Arial', 10, 'bold'), bg='#333', fg='white').pack(pady=5)
+        tk.Label(right_panel, text="Pattern Highlights", font=('Arial', 10, 'bold'), bg='#222', fg='white').pack(pady=5)
         
-        sel_frame = tk.Frame(right_panel, bg='#333')
+        sel_frame = tk.Frame(right_panel, bg='#222')
         sel_frame.pack(fill=tk.X, padx=10, pady=(0, 20)) # Added bottom padding
         
         for p in self.patterns:
             var = tk.BooleanVar(value=False)
             self.pattern_vars[p] = var
             cb = tk.Checkbutton(sel_frame, text=p, variable=var, 
-                                bg='#333', fg=self.pattern_colors[p], 
-                                activebackground='#333', selectcolor='#222',
+                                bg='#222', fg=self.pattern_colors[p], 
+                                activebackground='#222', selectcolor='#111',
                                 highlightthickness=0, borderwidth=0,
                                 state=tk.DISABLED, # [NEW] Start disabled
                                 command=self.update_minimap_markers)
@@ -132,12 +132,13 @@ class SessionViewer:
         self.fig = plt.figure(figsize=(10, 8), dpi=100)
         self.fig.patch.set_facecolor('#222222') # [MOD] Matches UI background
         
-        gs = self.fig.add_gridspec(2, 1, height_ratios=[4, 1], hspace=0.3)
+        gs = self.fig.add_gridspec(2, 1, height_ratios=[4, 1], hspace=0.15) # [MOD] Reduced hspace
         self.ax = self.fig.add_subplot(gs[0])      
         self.ax_mini = self.fig.add_subplot(gs[1])
         
-        # [NEW] Tighten margins to bring minimap close to timer
-        self.fig.subplots_adjust(left=0.1, right=0.95, top=0.92, bottom=0.08)
+        # [NEW] Tighten margins: Move graph UP and minimap DOWN closer to timer
+        # Removing plot titles to allow top=0.99
+        self.fig.subplots_adjust(left=0.1, right=0.95, top=0.99, bottom=0.05)
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.graph_frame)
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -146,12 +147,12 @@ class SessionViewer:
         # [NEW] Timer (Directly in graph_frame for tightest packing)
         # Using #222 background to look transparent against the gray panel
         self.lbl_time = tk.Label(self.graph_frame, text="00:00 / 00:00", bg='#222', fg='cyan', font=('Courier', 16, 'bold'))
-        self.lbl_time.pack(side=tk.BOTTOM, pady=(0, 5)) 
+        self.lbl_time.pack(side=tk.BOTTOM, pady=(0, 2)) # [MOD] Minimal padding to bring closer to minimap
 
         # [NEW] Navigation Buttons Frame
         # Reordered and color-coded seeking buttons
-        seek_frame = tk.Frame(left_panel, bg='#222') # [MOD] Removed height to let content pack tightly
-        seek_frame.pack(side=tk.TOP, fill=tk.X)
+        seek_frame = tk.Frame(left_panel, bg='#222') 
+        seek_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 10)) # [MOD] Reduced bottom padding
         
         inner_seek = tk.Frame(seek_frame, bg='#222')
         inner_seek.pack(expand=True)
@@ -235,7 +236,7 @@ class SessionViewer:
         self.ax.set_xlim(-WINDOW_PAST, WINDOW_FUTURE)
         self.ax.set_ylim(-5, 105) # [MOD] Fixed linear display space
         
-        self.ax.set_title("EK GSR Session Viewer (Click Minimap to Seek)", fontsize=12, fontweight='bold', color='white')
+        # [MOD] Plot title removed to save space
         
         # [NEW] Relative X-axis labels for Main Plot (-7s to +3s)
         ticks = list(range(int(-WINDOW_PAST), int(WINDOW_FUTURE)+1))
@@ -289,7 +290,7 @@ class SessionViewer:
             
         self.ax_mini.tick_params(axis='x', colors='lightgray', labelsize=8)
         self.ax_mini.tick_params(axis='y', colors='lightgray', labelsize=8)
-        self.ax_mini.set_title("Full Session Overlay (Click to Seek)", fontsize=10, color='gray') # [MOD] Title hint
+        self.ax_mini.set_title("Full Session Overlay (Click to Seek)", fontsize=10, color='gray') 
         
         # [NEW] Absolute Time Formatting for Minimap (mm:ss)
         from matplotlib.ticker import FuncFormatter
