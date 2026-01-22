@@ -208,6 +208,11 @@ class SessionViewer:
         # [NEW] Span Indicator (Top Right)
         self.txt_span = self.ax.text(0.98, 0.95, "", color='#aaaaaa', fontsize=9, fontweight='bold',
                                      ha='right', va='top', transform=self.ax.transAxes)
+        
+        # [NEW] Pattern Display (Bottom Center, like v42)
+        self.txt_pattern = self.ax.text(0.5, 0.02, "", ha='center', va='bottom', 
+                                        fontsize=14, fontweight='bold', color='gray', 
+                                        transform=self.ax.transAxes, zorder=90)
 
         # --- 2. Minimap ---
         self.ax_mini.clear()
@@ -579,6 +584,28 @@ class SessionViewer:
                 delta_ta = target_ta - self.smooth_c_val
                 sign = "+" if delta_ta > 0 else ""
                 t_label.set_text(f"{sign}{delta_ta:.2f} TA")
+
+
+        # [NEW] Update Pattern Display from CSV
+        if idx_now < len(self.df) and 'Pattern' in self.df.columns:
+            pattern = self.df.iloc[idx_now]['Pattern']
+            if pd.notna(pattern) and pattern != "":
+                # Color logic (matching v42)
+                col = 'gray'
+                if pattern == "BLOWDOWN": col = '#006400'
+                elif pattern == "ROCKET READ": col = '#DC143C'  # Crimson
+                elif pattern == "LONG FALL": col = '#008000'
+                elif pattern == "SHORT FALL": col = '#3CB371'
+                elif pattern == "LONG RISE": col = '#FF4500'    # OrangeRed
+                elif pattern == "SHORT RISE": col = 'orange'
+                elif pattern == "MOTION": col = '#8B0000'       # Dark Red
+                
+                self.txt_pattern.set_text(f"{pattern}")
+                self.txt_pattern.set_color(col)
+            else:
+                self.txt_pattern.set_text("")
+        else:
+            self.txt_pattern.set_text("")
 
         # 2. Minimap
         if self.mini_cursor:

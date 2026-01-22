@@ -1695,10 +1695,9 @@ if __name__ == "__main__":
                        elif pat == "SHORT FALL": col = '#3CB371'
                        elif pat == "LONG RISE": col = '#FF4500'    # OrangeRed
                        elif pat == "SHORT RISE": col = 'orange'
-                       elif pat == "STUCK": col = 'red'
                        elif pat == "MOTION": col = '#8B0000'       # Dark Red (Motion Locked)
                        
-                       disp_pat = f"PATTERN: {pat}" if pat else ""
+                       disp_pat = f"{pat}" if pat else ""
                        ui_refs['txt_pattern'].set_text(disp_pat)
                        ui_refs['txt_pattern'].set_color(col)
                        
