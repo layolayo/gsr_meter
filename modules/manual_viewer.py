@@ -41,6 +41,9 @@ class ManualViewer:
         sidebar = tk.Frame(self.root, bg=sidebar_bg, width=200)
         sidebar.pack(side=tk.LEFT, fill=tk.Y)
         
+        # [NEW] Resize Handling
+        self.root.bind("<Configure>", self.on_window_resize)
+        
         # Content Area
         content_frame = tk.Frame(self.root, bg="white")
         content_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
@@ -282,6 +285,6 @@ class ManualViewer:
         flush_table_buffer() 
         self.doc_text.config(state=tk.DISABLED)
     
-    def _adjust_color(self, hex_color, factor):
-        # Placeholder for color adjustment if we want dynamic theming later
-        return hex_color
+    def on_window_resize(self, event):
+        if event.widget == self.root:
+            self.root.update()

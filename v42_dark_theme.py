@@ -2007,6 +2007,12 @@ if __name__ == "__main__":
                  timer.stop()
         except: pass
 
+    def on_resize(event):
+        global graph_bg, bg_left_labels, bg_scores, bg_count, bg_detail, bg_status, bg_sens, bg_scale_panel, bg_system_panel
+        graph_bg = bg_left_labels = bg_scores = bg_count = bg_detail = bg_status = bg_sens = bg_scale_panel = bg_system_panel = None
+        # print("Resize: Backgrounds Cleared.")
+
+    fig.canvas.mpl_connect('resize_event', on_resize)
     fig.canvas.mpl_connect('close_event', on_close)
 
     # [FIX] Flush Last Log to UI

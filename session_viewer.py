@@ -68,9 +68,11 @@ class SessionViewer:
         self.setup_gui()
 
     def setup_gui(self):
-        # --- Toolbar (Top) ---
         toolbar = tk.Frame(self.master, height=40, bg='#444444') # [MOD] Lighter gray for separation
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=0, pady=0)
+        
+        # [NEW] Master Resize Handling
+        self.master.bind("<Configure>", self.on_window_resize_master)
 
         # Back
         tk.Button(toolbar, text="< Back", command=self.request_close, 
@@ -142,7 +144,7 @@ class SessionViewer:
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.graph_frame)
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.graph_frame.bind("<Configure>", self.on_resize) 
+        # self.graph_frame.bind("<Configure>", self.on_resize) # [MOD] Replying on master resize instead
 
         # [NEW] Timer (Directly in graph_frame for tightest packing)
         # Using #222 background to look transparent against the gray panel
@@ -329,6 +331,14 @@ class SessionViewer:
              pass
              self.canvas.draw()
         except: pass
+
+    def on_window_resize_master(self, event):
+        """Force a full GUI refresh when the master window is resized"""
+        if event.widget == self.master:
+             # Use update() to force immediate repainting of all widgets
+             self.master.update()
+             # Redraw the graph as well
+             self.on_resize(None)
 
     def on_resize(self, event):
         self.init_plot()
