@@ -220,15 +220,27 @@ class SessionViewer:
         self.ax_mini.tick_params(axis='y', colors='lightgray', labelsize=8)
         self.ax_mini.set_title("Full Session Overlay (Click to Seek)", fontsize=10, color='gray') # [MOD] Title hint
         
+        
         if self.df is not None and not self.df.empty:
             t = self.df['Rel_Time'].values
             y = self.df['GSR'].values
-            self.ax_mini.plot(t, y, color='cyan', lw=1, alpha=0.6)
-            self.ax_mini.set_xlim(t.min(), t.max())
             
-            y_min, y_max = y.min(), y.max()
-            margin = (y_max - y_min) * 0.1 if (y_max - y_min) > 0 else 0.5
-            self.ax_mini.set_ylim(max(0, y_min - margin), y_max + margin)
+            # [FIX] Filter out NaN and Inf values
+            valid_mask = np.isfinite(t) & np.isfinite(y)
+            t_valid = t[valid_mask]
+            y_valid = y[valid_mask]
+            
+            if len(t_valid) > 0 and len(y_valid) > 0:
+                self.ax_mini.plot(t_valid, y_valid, color='cyan', lw=1, alpha=0.6)
+                self.ax_mini.set_xlim(t_valid.min(), t_valid.max())
+                
+                y_min, y_max = y_valid.min(), y_valid.max()
+                margin = (y_max - y_min) * 0.1 if (y_max - y_min) > 0 else 0.5
+                self.ax_mini.set_ylim(max(0, y_min - margin), y_max + margin)
+            else:
+                # Fallback if no valid data
+                self.ax_mini.set_xlim(0, 10)
+                self.ax_mini.set_ylim(0, 10)
             
         self.mini_cursor = self.ax_mini.axvline(x=0, color='yellow', lw=1.5, alpha=0.9)
 
@@ -268,18 +280,58 @@ class SessionViewer:
             self.df = pd.read_csv(gsr_path, low_memory=False)
             self.df.columns = [c.strip() for c in self.df.columns]
             
-            if 'Rel_Time' not in self.df.columns:
-                if 'Elapsed' in self.df.columns:
-                    self.df['Rel_Time'] = pd.to_numeric(self.df['Elapsed'], errors='coerce')
+            # [FIX] Use 'Elapsed' column directly (actual CSV header)
+            if 'Elapsed' in self.df.columns:
+                # Check first non-null value to detect format
+                first_val = self.df['Elapsed'].dropna().iloc[0] if len(self.df['Elapsed'].dropna()) > 0 else None
+                is_time_format = False
+                
+                if first_val is not None:
+                    # Check if it's a string with colons (time format)
+                    if isinstance(first_val, str) and ':' in first_val:
+                        is_time_format = True
+                        self.log(f"Detected time format: {first_val}")
+                
+                if is_time_format:
+                    # Parse hh:mm:ss.xxxxxx format
+                    def parse_time_to_seconds(time_str):
+                        """Convert hh:mm:ss.xxxxxx to total seconds"""
+                        try:
+                            if pd.isna(time_str):
+                                return np.nan
+                            parts = str(time_str).split(':')
+                            if len(parts) == 3:
+                                hours = float(parts[0])
+                                minutes = float(parts[1])
+                                seconds = float(parts[2])
+                                total = hours * 3600 + minutes * 60 + seconds
+                                return total
+                            else:
+                                # Try direct numeric conversion
+                                return float(time_str)
+                        except Exception as e:
+                            self.log(f"Parse error for '{time_str}': {e}")
+                            return np.nan
+                    
+                    self.df['Elapsed'] = self.df['Elapsed'].apply(parse_time_to_seconds)
+                    self.log(f"Converted time format. Sample: {self.df['Elapsed'].iloc[0]:.2f}s")
                 else:
-                    self.df['Rel_Time'] = np.arange(len(self.df)) * (1.0/60.0)
+                    # Already numeric or can be converted directly
+                    self.df['Elapsed'] = pd.to_numeric(self.df['Elapsed'], errors='coerce')
+                
+                # Create Rel_Time as alias for compatibility
+                self.df['Rel_Time'] = self.df['Elapsed']
+            else:
+                # Fallback if no Elapsed column
+                self.df['Rel_Time'] = np.arange(len(self.df)) * (1.0/60.0)
+                self.df['Elapsed'] = self.df['Rel_Time']
             
+            # Map TA to GSR for compatibility
             if 'GSR' not in self.df.columns and 'TA' in self.df.columns:
                  self.df['GSR'] = pd.to_numeric(self.df['TA'], errors='coerce')
             
             # [NEW] Fix Missing Metadata (ffill/bfill)
-            # Standard Headings for EK GSR Recordings
-            cols_to_fix = ['Center', 'TA SET', 'Window', 'Win', 'Window_Size', 'Sensitivity']
+            cols_to_fix = ['TA SET', 'Sensitivity', 'Window_Size', 'Pivot']
             for c in cols_to_fix:
                 if c in self.df.columns:
                     self.df[c] = self.df[c].ffill().bfill()
