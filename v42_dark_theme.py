@@ -1696,7 +1696,7 @@ if __name__ == "__main__":
                   if 'txt_pattern' in ui_refs:
                        # Color logic
                        col = 'gray'
-                       if pat == "BLOWDOWN": col = '#006400'
+                       if pat == "BLOWDOWN": col = '#00CED1' # DarkTurquoise
                        elif pat == "ROCKET READ": col = '#DC143C'  # Crimson
                        elif pat == "LONG FALL": col = '#008000'
                        elif pat == "SHORT FALL": col = '#3CB371'

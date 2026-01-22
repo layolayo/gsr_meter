@@ -22,6 +22,7 @@ class SessionViewer:
         # Data State
         self.df = None
         self.time_index = None
+        self.pattern_index = [] # [NEW] Stores (pattern, start_time) tuples
 
         self.audio_len_sec = 0
         self.notes_content = ""
@@ -48,6 +49,18 @@ class SessionViewer:
         self.smooth_w_val = None
         self.last_plot_time = -1.0
         
+        # [NEW] Pattern Logic State
+        self.patterns = ["LONG FALL", "BLOWDOWN", "LONG RISE", "ROCKET READ"]
+        self.pattern_colors = {
+            "LONG FALL": "#008000",
+            "BLOWDOWN": "#00CED1",
+            "LONG RISE": "#FF4500",
+            "ROCKET READ": "#DC143C"
+        }
+        self.pattern_vars = {} # Will hold BooleanVars
+        self.pattern_checkboxes = {} # [NEW] Stores Checkbutton widgets
+        self.mini_markers = [] # Store matplotlib lines
+        
         # UI Vars
         self.var_track = tk.BooleanVar(value=False) 
         
@@ -73,60 +86,95 @@ class SessionViewer:
         # Controls
         tk.Frame(toolbar, width=20, bg='#333').pack(side=tk.LEFT)
         
-        self.btn_play = tk.Button(toolbar, text="Play", command=self.toggle_play, state=tk.DISABLED, width=8, bg='#006600', fg='white')
-        self.btn_play.pack(side=tk.LEFT, padx=5)
-
-        self.lbl_time = tk.Label(toolbar, text="00:00 / 00:00", bg='#333', fg='cyan', font=('Courier', 12, 'bold'))
-        self.lbl_time.pack(side=tk.LEFT, padx=5)
-
-        # Phase 2 Controls (Zoom/Track removed per user request)
-        tk.Frame(toolbar, width=20, bg='#333').pack(side=tk.LEFT)
+        # [MOD] Play button and Timer moved to bottom
 
 
         # --- Main Layout ---
         main_content = tk.Frame(self.master, bg='#222')
         main_content.pack(fill=tk.BOTH, expand=True)
         
-        left_panel = tk.Frame(main_content, bg='black')
+        left_panel = tk.Frame(main_content, bg='#222') 
         left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         right_panel = tk.Frame(main_content, width=250, bg='#333')
         right_panel.pack(side=tk.LEFT, fill=tk.Y)
         
-        self.graph_frame = tk.Frame(left_panel, bg='black')
+        self.graph_frame = tk.Frame(left_panel, bg='#222') # [MOD] Matches panel background
         self.graph_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True) 
         
 
         tk.Label(right_panel, text="Session Notes", font=('Arial', 10, 'bold'), bg='#333', fg='white').pack(pady=5)
-        self.txt_notes = scrolledtext.ScrolledText(right_panel, height=20, width=30, wrap=tk.WORD, bg='#222', fg='white', insertbackground='white')
+        self.txt_notes = scrolledtext.ScrolledText(right_panel, width=30, wrap=tk.WORD, bg='#222', fg='white', insertbackground='white')
         self.txt_notes.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         self.btn_save_notes = tk.Button(right_panel, text="Save Notes", command=self.save_notes, bg='#005500', fg='white')
         self.btn_save_notes.pack(fill=tk.X, padx=5, pady=5)
+
+        # [NEW] Pattern Selection Box (Moved to bottom)
+        tk.Frame(right_panel, height=2, bg='#444').pack(fill=tk.X, pady=10)
+        tk.Label(right_panel, text="Pattern Highlights", font=('Arial', 10, 'bold'), bg='#333', fg='white').pack(pady=5)
+        
+        sel_frame = tk.Frame(right_panel, bg='#333')
+        sel_frame.pack(fill=tk.X, padx=10, pady=(0, 20)) # Added bottom padding
+        
+        for p in self.patterns:
+            var = tk.BooleanVar(value=False)
+            self.pattern_vars[p] = var
+            cb = tk.Checkbutton(sel_frame, text=p, variable=var, 
+                                bg='#333', fg=self.pattern_colors[p], 
+                                activebackground='#333', selectcolor='#222',
+                                highlightthickness=0, borderwidth=0,
+                                state=tk.DISABLED, # [NEW] Start disabled
+                                command=self.update_minimap_markers)
+            cb.pack(anchor=tk.W)
+            self.pattern_checkboxes[p] = cb # [NEW] Store reference
         
         self.fig = plt.figure(figsize=(10, 8), dpi=100)
-        self.fig.patch.set_facecolor('#1e1e1e')
+        self.fig.patch.set_facecolor('#222222') # [MOD] Matches UI background
         
         gs = self.fig.add_gridspec(2, 1, height_ratios=[4, 1], hspace=0.3)
         self.ax = self.fig.add_subplot(gs[0])      
         self.ax_mini = self.fig.add_subplot(gs[1])
         
-        # [NEW] Adjust margins to leave room for labels on the left (parity)
-        self.fig.subplots_adjust(left=0.1, right=0.95, top=0.92, bottom=0.1)
+        # [NEW] Tighten margins to bring minimap close to timer
+        self.fig.subplots_adjust(left=0.1, right=0.95, top=0.92, bottom=0.08)
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.graph_frame)
-        self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.graph_frame.bind("<Configure>", self.on_resize) 
+
+        # [NEW] Timer (Directly in graph_frame for tightest packing)
+        # Using #222 background to look transparent against the gray panel
+        self.lbl_time = tk.Label(self.graph_frame, text="00:00 / 00:00", bg='#222', fg='cyan', font=('Courier', 16, 'bold'))
+        self.lbl_time.pack(side=tk.BOTTOM, pady=(0, 5)) 
+
+        # [NEW] Navigation Buttons Frame
+        # Reordered and color-coded seeking buttons
+        seek_frame = tk.Frame(left_panel, bg='#222') # [MOD] Removed height to let content pack tightly
+        seek_frame.pack(side=tk.TOP, fill=tk.X)
         
-        # [NEW] Seek Buttons Frame (Under Minimap)
-        seek_frame = tk.Frame(left_panel, bg='#222', height=40)
-        seek_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+        inner_seek = tk.Frame(seek_frame, bg='#222')
+        inner_seek.pack(expand=True)
+
+        # Pattern Selection Buttons (Dark Blue)
+        tk.Button(inner_seek, text="|< PREV PAT", command=lambda: self.seek_to_pattern(-1),
+                  bg='#003366', fg='white', width=12).pack(side=tk.LEFT, padx=5)
+
+        # Seconds Changing Buttons (Dark Gray)
+        tk.Button(inner_seek, text="<< -5sec", command=self.seek_backward,
+                  bg='#444', fg='white', width=10).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(seek_frame, text="<< -5sec", command=self.seek_backward,
-                  bg='#444', fg='white', width=10).pack(side=tk.LEFT, padx=50, expand=True)
-        
-        tk.Button(seek_frame, text="+ 5sec >>", command=self.seek_forward,
-                  bg='#444', fg='white', width=10).pack(side=tk.RIGHT, padx=50, expand=True)
+        # [NEW] Play button centered
+        self.btn_play = tk.Button(inner_seek, text="Play", command=self.toggle_play, state=tk.DISABLED, 
+                                 width=15, bg='#006600', fg='white', font=('Arial', 10, 'bold'))
+        self.btn_play.pack(side=tk.LEFT, padx=5)
+
+        tk.Button(inner_seek, text="+ 5sec >>", command=self.seek_forward,
+                  bg='#444', fg='white', width=10).pack(side=tk.LEFT, padx=5)
+
+        # Pattern Selection Buttons (Dark Blue)
+        tk.Button(inner_seek, text="NEXT PAT >|", command=lambda: self.seek_to_pattern(1),
+                  bg='#003366', fg='white', width=12).pack(side=tk.LEFT, padx=5)
 
         # [NEW] Interactive Minimap
         self.canvas.mpl_connect('button_press_event', self.on_plot_click)
@@ -262,7 +310,7 @@ class SessionViewer:
             y_valid = y[valid_mask]
             
             if len(t_valid) > 0 and len(y_valid) > 0:
-                self.ax_mini.plot(t_valid, y_valid, color='cyan', lw=1, alpha=0.6)
+                self.ax_mini.plot(t_valid, y_valid, color='yellow', lw=1, alpha=0.6)
                 self.ax_mini.set_xlim(t_valid.min(), t_valid.max())
                 
                 y_min, y_max = y_valid.min(), y_valid.max()
@@ -273,7 +321,7 @@ class SessionViewer:
                 self.ax_mini.set_xlim(0, 10)
                 self.ax_mini.set_ylim(0, 10)
             
-        self.mini_cursor = self.ax_mini.axvline(x=0, color='yellow', lw=1.5, alpha=0.9)
+        self.mini_cursor = self.ax_mini.axvline(x=0, color='white', lw=1.5, alpha=0.9)
 
         try:
              # self.fig.tight_layout() 
@@ -285,6 +333,7 @@ class SessionViewer:
         self.init_plot()
         if self.df is not None:
              self.update_plot(self.playback_offset)
+             self.update_minimap_markers()
 
     def on_plot_click(self, event):
         # [NEW] Handle click on Minimap
@@ -369,6 +418,26 @@ class SessionViewer:
             
             self.time_index = self.df['Rel_Time'].values
 
+            # [NEW] Pre-calculate Pattern Index for fast navigation
+            self.pattern_index = []
+            if 'Pattern' in self.df.columns:
+                # Find where pattern changes
+                mask = (self.df['Pattern'] != self.df['Pattern'].shift(1))
+                transitions = self.df[mask]
+                for _, row in transitions.iterrows():
+                    p_name = row['Pattern']
+                    if pd.notna(p_name) and str(p_name).strip() != "":
+                        self.pattern_index.append((str(p_name).strip(), float(row['Rel_Time'])))
+            
+            # [NEW] Enable checkboxes only for patterns found in session
+            found_pats = set(p for p, t in self.pattern_index)
+            for p_name, cb in self.pattern_checkboxes.items():
+                if p_name in found_pats:
+                    cb.config(state=tk.NORMAL)
+                else:
+                    self.pattern_vars[p_name].set(False)
+                    cb.config(state=tk.DISABLED)
+            
             # Audio
             audio_path = os.path.join(folder_path, "Audio.wav")
             if not os.path.exists(audio_path): audio_path = os.path.join(folder_path, "audio.wav")
@@ -401,8 +470,8 @@ class SessionViewer:
             self.txt_notes.insert(tk.END, content)
 
             self.playback_offset = 0
-            self.playback_offset = 0
             self.init_plot()
+            self.update_minimap_markers()
             
             self.btn_play.config(state=tk.NORMAL)
             self.stop_playback(reset=True)
@@ -466,6 +535,71 @@ class SessionViewer:
         self.update_plot(self.playback_offset)
         if was_playing:
             self.start_playback()
+
+    def update_minimap_markers(self):
+        """Redraw pattern markers on the minimap using the pre-calculated index"""
+        for m in self.mini_markers:
+            try: m.remove()
+            except: pass
+        self.mini_markers = []
+        
+        if not self.pattern_index: return
+            
+        selected = [p for p, var in self.pattern_vars.items() if var.get()]
+        if not selected:
+            try: self.canvas.draw()
+            except: pass
+            return
+            
+        for pat, t in self.pattern_index:
+            if pat in selected:
+                col = self.pattern_colors.get(pat, 'gray')
+                l = self.ax_mini.axvline(x=t, color=col, lw=1.5, alpha=0.8, zorder=40)
+                self.mini_markers.append(l)
+            
+        try: self.canvas.draw()
+        except: pass
+
+    def seek_to_pattern(self, direction):
+        """Jump to the next/prev pattern start using the cached index"""
+        if not self.pattern_index: return
+        
+        selected = [p for p, var in self.pattern_vars.items() if var.get()]
+        if not selected:
+             messagebox.showinfo("Note", "Select at least one pattern highlight first.")
+             return
+             
+        curr_t = self.get_current_time()
+        
+        # Filter index for selected types
+        valid_starts = [t for pat, t in self.pattern_index if pat in selected]
+        
+        if not valid_starts:
+             messagebox.showinfo("Note", "No instances of selected patterns found.")
+             return
+             
+        target = None
+        if direction > 0:
+             # Next: Find first start > curr_t + 3.1s (to skip the current 3s lead-in)
+             # This ensures we skip the pattern we are currently jump-positioned at.
+             for t in valid_starts:
+                 if t > curr_t + 3.1: 
+                     target = t
+                     break
+        else:
+             # Prev: Find last start < curr_t + 2.9s (to find the start of previous patterns)
+             # Looking specifically for patterns before the current logical start window
+             for t in reversed(valid_starts):
+                 if t < curr_t + 2.9: 
+                     target = t
+                     break
+             
+        if target is not None:
+             # Jump to 3 seconds before the pattern
+             self.perform_seek(max(0, target - 3.0))
+        else:
+             msg = "No more patterns forward." if direction > 0 else "No more patterns backward."
+             messagebox.showinfo("End", msg)
 
     def seek_backward(self):
         """Jump back 5 seconds"""
@@ -637,7 +771,7 @@ class SessionViewer:
             if pd.notna(pattern) and pattern != "":
                 # Color logic (matching v42)
                 col = 'gray'
-                if pattern == "BLOWDOWN": col = '#006400'
+                if pattern == "BLOWDOWN": col = '#00CED1'
                 elif pattern == "ROCKET READ": col = '#DC143C'  # Crimson
                 elif pattern == "LONG FALL": col = '#008000'
                 elif pattern == "SHORT FALL": col = '#3CB371'
