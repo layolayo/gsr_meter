@@ -42,7 +42,7 @@ LOG_WINDOW_HEIGHT = 0.05   # [MOD] Much higher starting sensitivity (approx 13.3
 ZOOM_COEFFICIENT = 1.0     
 CALIB_PIVOT_TA = 2.0
 active_event_label = ""   
-latest_d_ta = 0.0 
+#latest_d_ta = 0.0 
 last_stable_window = 0.125 # [MOD]
 gsr_capture_queue = collections.deque(maxlen=100)
 # [NEW] Manual Blit Globals
@@ -137,6 +137,12 @@ recording_start_time: Optional[datetime] = None
 # --- AUDIO RECORDING STATE ---
 audio_filename = None
 
+
+ZOOM_POSITIONS = [
+    0.5, 0.6, 0.7, 0.8, 0.9,
+    1.0,
+    1.2, 1.4, 1.6, 1.8, 2.0,
+]
 # ==========================================
 #           GSR READER 
 # ==========================================
@@ -216,10 +222,10 @@ class GSRReader(threading.Thread):
                                   
                                   # Grab Global Delta TA (Calculated in Main Thread)
                                   # Note: Might be slightly delayed 60Hz vs 60Hz but adequate.
-                                  d_ta_log = latest_d_ta if 'latest_d_ta' in globals() else 0.0
+                                  #d_ta_log = latest_d_ta if 'latest_d_ta' in globals() else 0.0
                                        
                                   log_ta = math.log10(max(0.01, self.current_ta))
-                                  writer_gsr.writerow([ts_now, f"{elapsed:.3f}", f"{self.current_ta:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{d_ta_log:.5f}", f"{log_ta:.5f}"])
+                                  writer_gsr.writerow([ts_now, f"{elapsed:.3f}", f"{self.current_ta:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{log_ta:.5f}"])
                              
                          except Exception: pass
 
@@ -249,6 +255,11 @@ class GSRReader(threading.Thread):
         except Exception as e:
             print(f"[GSR] FATAL Error: {e}") 
             self.connected = False
+        finally:
+            print("[GSR] Closing HID Device...")
+            try:
+                if 'h' in locals(): h.close()
+            except: pass
 
     def stop(self):
         self.running = False
@@ -350,6 +361,27 @@ manual_viewer = ManualViewer(
         ("Technical & Troubleshooting", "manual/technical_guide.md", "#2980b9")
     ]
 )
+
+def map_zoom_to_nearest(zoom_val, slider=None):
+    """
+    Snap a zoom coefficient to the nearest allowed position.
+    Parameters
+    ----------
+    zoom_val : float
+        The raw zoom coefficient (e.g. from the slider or arrow keys).
+    slider : matplotlib.widgets.Slider, optional
+        If supplied, the slider thumb will be moved to the snapped value.
+    Returns
+    -------
+    float
+        The nearest zoom position from ``ZOOM_POSITIONS``.
+    """
+    # Find the nearest entry in ZOOM_POSITIONS
+    nearest = min(ZOOM_POSITIONS, key=lambda x: abs(x - zoom_val))
+    # Update the Matplotlib slider if we have one
+    if slider is not None:
+        slider.set_val(nearest)
+    return nearest
 
 def show_manual_popup(event=None):
     # Ensure this runs on the main thread or via a safe call
@@ -635,7 +667,7 @@ if __name__ == "__main__":
                 mult_raw = math.pow(2.0, (x_val - 0.5) * 2)
                 
                 # Snap to specific 0.1 steps [0.5, 0.6 ... 2.0]
-                steps = [round(s * 0.1, 1) for s in range(5, 21)]
+                steps = ZOOM_POSITIONS
                 mult_stepped = min(steps, key=lambda s: abs(s - mult_raw))
                 
                 ZOOM_COEFFICIENT = 1.0 / mult_stepped
@@ -645,32 +677,58 @@ if __name__ == "__main__":
         global slider_grabbed
         if slider_grabbed:
             slider_grabbed = False
-            save_config()
 
     def on_key_press(event):
         global ZOOM_COEFFICIENT
-        # [NEW] Arrow Key Zoom Controls (Locked to 0.1 Steps)
-        if event.key in ['left', 'right']:
-            steps = [round(s * 0.1, 1) for s in range(5, 21)]
-            current_mult = round(1.0 / ZOOM_COEFFICIENT, 1)
+        # [NEW] Arrow Key Zoom Controls (Locked to ZOOM_POSITIONS)
+        if event.key in ['left', 'right', 'up', 'down']:
+            steps = ZOOM_POSITIONS
+            current_mult = 1.0 / ZOOM_COEFFICIENT
             
+            # Find nearest step index
+            nearest = min(steps, key=lambda s: abs(s - current_mult))
             try:
-                idx = steps.index(current_mult)
-                new_idx = idx + (1 if event.key == 'right' else -1)
-                new_idx = max(0, min(len(steps)-1, new_idx))
-                new_mult = steps[new_idx]
+                idx = steps.index(nearest)
             except ValueError:
-                # If current coeff is weirdly in-between, find nearest
-                new_mult = min(steps, key=lambda s: abs(s - current_mult))
+                idx = steps.index(1.0) # Fallback
+
+            # Right/Up increases multiplier (zooms in), Left/Down decreases
+            direction = 1 if event.key in ['right', 'up'] else -1
+            new_idx = max(0, min(len(steps)-1, idx + direction))
+            new_mult = steps[new_idx]
             
             ZOOM_COEFFICIENT = 1.0 / new_mult
             update_zoom_ui()
-            save_config()
+        
+        # [NEW] Spacebar auto-sets TA Center to current value
+        elif event.key == ' ':
+            if latest_gsr_ta > 0.1:
+               update_gsr_center(latest_gsr_ta, reason="User Reset")
+
+    def on_scroll(event):
+        global ZOOM_COEFFICIENT
+        if event.inaxes == ax_graph or event.inaxes == ax_zoom_track:
+            steps = ZOOM_POSITIONS
+            current_mult = 1.0 / ZOOM_COEFFICIENT
+            nearest = min(steps, key=lambda s: abs(s - current_mult))
+            try:
+                idx = steps.index(nearest)
+            except ValueError:
+                idx = steps.index(1.0)
+
+            # Scroll Up (event.step > 0) zooms in (increases multiplier)
+            direction = 1 if event.step > 0 else -1
+            new_idx = max(0, min(len(steps)-1, idx + direction))
+            new_mult = steps[new_idx]
+
+            ZOOM_COEFFICIENT = 1.0 / new_mult
+            update_zoom_ui()
 
     fig.canvas.mpl_connect('button_press_event', on_zoom_click)
     fig.canvas.mpl_connect('button_release_event', on_zoom_release)
     fig.canvas.mpl_connect('motion_notify_event', on_zoom_click)
-    fig.canvas.mpl_connect('key_press_event', on_key_press) # [NEW]
+    fig.canvas.mpl_connect('key_press_event', on_key_press)
+    fig.canvas.mpl_connect('scroll_event', on_scroll)
 
     # --- 3. Sensitivity Value Display ---
     y_sens_val = 0.70 # [REQ] NEATLY PLACED BELOW ZOOM (DO NOT CHANGE AGAIN)
@@ -740,19 +798,6 @@ if __name__ == "__main__":
     btn_calib.on_clicked(start_calibration)
     
     
-    def change_sensitivity(direction):
-        global ZOOM_COEFFICIENT
-        # Adjust ZOOM_COEFFICIENT by 5%
-        step = ZOOM_COEFFICIENT * 0.05
-        
-        delta = step * direction
-        # Direction +1 means INCREASE SENSITIVITY -> REDUCE WINDOW (Lower Zoom Coeff)
-        new_coeff = ZOOM_COEFFICIENT - delta
-        
-        ZOOM_COEFFICIENT = max(0.2, min(2.5, rounded_step(new_coeff)))
-        update_zoom_ui()
-        #plt.draw()
-        
     def rounded_step(val): return round(val * 1000) / 1000.0 # Round to nearest 0.001
 
 
@@ -795,38 +840,6 @@ if __name__ == "__main__":
         if val_txt: val_txt.set_text(f"TA SET: {val:.2f}")
 
     # Keyboard Control
-    def on_key(event):
-        global GSR_CENTER_VAL
-        eff_win = get_effective_window() # [FIX] Use effective window
-        log_center = math.log10(max(0.01, GSR_CENTER_VAL))
-        # Step size is 10% of the Log Window
-        log_step = eff_win * 0.1
-        
-        #if event.key == 'up':
-            # Increasing Graph value = Decreasing TA
-         #   new_log = log_center - log_step
-          #  update_gsr_center(math.pow(10, new_log))
-        #elif event.key == 'down':
-            # Decreasing Graph value = Increasing TA
-            #new_log = log_center + log_step
-            #update_gsr_center(math.pow(10, new_log))
-        if event.key == 'right':
-            change_sensitivity(1) # [FIX] +Sens (Decrease Window)
-        elif event.key == 'left':
-            change_sensitivity(-1) # [FIX] -Sens (Increase Window)
-        #if event.key == ' ':
-            # [REQ] Spacebar auto-sets TA Center to current value AND syncs Auto-Boost Zoom
-        #    if latest_gsr_ta > 0.1:
-         #      global active_event_label
-          #      if gsr_patterns:
-           #         pass # gsr_patterns.reset() # [FIX] Disabled per user request
-                
-                # [REQ] Log the reset event
-          #      active_event_label = f"USER_TA_RESET to {latest_gsr_ta:.3f}"
-                # log_msg moved to update_gsr_center
-          #      update_gsr_center(latest_gsr_ta, reason="User Reset")
-
-    fig.canvas.mpl_connect('key_press_event', on_key)
     
     # === TA & SCORES PANELS (Clean Re-implementation) ===
     # Moved UP to avoid overlapping System Info (Y=0.04)
@@ -1022,13 +1035,9 @@ if __name__ == "__main__":
              # Initialize GSR CSV
              f_gsr = open(fname_gsr, 'w', newline='')
              writer_gsr = csv.writer(f_gsr)
-             # [FIX] Added Delta_TA
-             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Notes", "Pattern", "Delta_TA", "Log_TA"])
+             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Notes", "Pattern", "Log_TA"])
              
-             # (Trend CSV Removed)
-
              is_recording = True 
-             # [NEW] Streaming Audio
              audio_handler.start_recording(audio_filename)
              audio_handler.sync_audio_stream(current_view)
              
@@ -1258,11 +1267,17 @@ if __name__ == "__main__":
         viewer_frame.pack(fill=tk.BOTH, expand=True)
         
     def exit_viewer():
-        global current_view, viewer_frame
+        global current_view, viewer_frame, sess_viewer
         
+        # 0. Definitive Cleanup
+        if sess_viewer:
+             try: sess_viewer.request_close()
+             except: pass
+
         # 1. Hide Viewer
         if viewer_frame:
-             viewer_frame.pack_forget()
+             try: viewer_frame.pack_forget()
+             except: pass
              
         # 2. Show Canvas
         canvas_widget = fig.canvas.get_tk_widget()
@@ -1271,10 +1286,8 @@ if __name__ == "__main__":
         # 3. Resume Audio
         log_msg("Resuming Live Mode...")
         try:
-             if audio_handler.audio_stream:
-                 # Re-open or just start? 
-                 # Sync handles it usually.
-                 audio_handler.sync_audio_stream('main') 
+             # Ensure stream is synced/started for main view
+             audio_handler.sync_audio_stream('main') 
         except Exception as e: print(f"Audio Resume Err: {e}")
         
         # 4. Resume Timer
@@ -2001,9 +2014,14 @@ if __name__ == "__main__":
 
     def on_close(event):
         global app_running
+        if not app_running: return 
         app_running = False
-        save_config() 
-        print("Window Closed. Cleaning up...")
+        print("Window Close Event Triggered.")
+        try:
+             # Stop timer immediately
+             if 'timer' in locals() and timer:
+                 timer.stop()
+        except: pass
 
     fig.canvas.mpl_connect('close_event', on_close)
 
@@ -2136,8 +2154,14 @@ if __name__ == "__main__":
         # Monkey patch update to call final_blit
         original_update = update
         def update_wrapper(frame=0):
-             original_update(frame)
-             final_blit()
+             if not app_running: return
+             try:
+                 original_update(frame)
+                 final_blit()
+             except Exception:
+                 # Silently ignore Matplotlib/Tkinter errors during shutdown
+                 if not app_running: pass
+                 else: raise
              
         # Re-bind timer
         timer.remove_callback(update)
@@ -2151,22 +2175,43 @@ if __name__ == "__main__":
         traceback.print_exc()
     finally:
         app_running = False
-        # [FIX] Immediate Timer/Loop Stop
+        print("Shutdown Initiated.")
+        
+        # 1. Immediate Timer Stop
         try:
              if 'timer' in locals() and timer:
                  timer.stop()
-                 timer.remove_callback(update_wrapper)
         except Exception: pass
         
-        print("Shutdown Initiated.")
+        # 2. Cleanup Viewer if active
+        if 'sess_viewer' in globals() and sess_viewer:
+             try: sess_viewer.request_close()
+             except: pass
+
+        # 3. Stop GSR Thread
+        if 'gsr_thread' in globals() and gsr_thread:
+            print("[System] Stopping GSR Reader...")
+            gsr_thread.stop()
+            gsr_thread.join(timeout=0.5)
+
+        # 4. Stop Recording & Audio
+        if is_recording:
+             try: toggle_rec(None) 
+             except: pass
+             
+        if 'audio_handler' in globals() and audio_handler:
+             try:
+                 audio_handler.stop_recording()
+                 audio_handler.stop_playback()
+                 if audio_handler.audio_stream:
+                      audio_handler.audio_stream.close()
+             except: pass
+
+        # 5. Final Cleanup
+        save_config() 
         if f_gsr: 
              try: f_gsr.close()
              except Exception: pass
 
-        # [HRM REMOVED]
-             
-        if 'audio_handler' in globals() and audio_handler.audio_stream:
-             audio_handler.audio_stream.close()
-             
-        # (t.join removed)
         print("Shutdown Complete.")
+        os._exit(0)

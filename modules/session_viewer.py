@@ -8,6 +8,7 @@ import os
 import time
 
 # --- SETTINGS ---
+import math
 WINDOW_PAST = 7.0
 WINDOW_FUTURE = 3.0
 UPDATE_INTERVAL_MS = 50  # 20 FPS
@@ -42,6 +43,11 @@ class SessionViewer:
         self.mini_cursor = None
         self.timer_id = None
         
+        # [NEW] Smoothing State
+        self.smooth_c_val = None
+        self.smooth_w_val = None
+        self.last_plot_time = -1.0
+        
         # UI Vars
         self.var_track = tk.BooleanVar(value=False) 
         
@@ -73,20 +79,8 @@ class SessionViewer:
         self.lbl_time = tk.Label(toolbar, text="00:00 / 00:00", bg='#333', fg='cyan', font=('Courier', 12, 'bold'))
         self.lbl_time.pack(side=tk.LEFT, padx=5)
 
-        # Phase 2 Controls
+        # Phase 2 Controls (Zoom/Track removed per user request)
         tk.Frame(toolbar, width=20, bg='#333').pack(side=tk.LEFT)
-        
-        tk.Checkbutton(toolbar, text="Auto-Track", variable=self.var_track, 
-                       bg='#333', fg='white', selectcolor='#444', activeforeground='white', activebackground='#333',
-                       command=lambda: self.update_plot(self.playback_offset)).pack(side=tk.LEFT, padx=5)
-                       
-        tk.Label(toolbar, text="Zoom:", bg='#333', fg='#aaa').pack(side=tk.LEFT)
-        # [MOD] Increased range to 10.0
-        self.scale_sens = tk.Scale(toolbar, from_=0.2, to=10.0, orient=tk.HORIZONTAL, length=100, resolution=0.1,
-                                   bg='#333', fg='white', troughcolor='#555', showvalue=0)
-        self.scale_sens.set(1.0) 
-        self.scale_sens.pack(side=tk.LEFT, padx=5)
-        self.scale_sens.bind("<ButtonRelease-1>", lambda e: self.update_plot(self.playback_offset))
 
 
         # --- Main Layout ---
@@ -129,7 +123,10 @@ class SessionViewer:
         
         gs = self.fig.add_gridspec(2, 1, height_ratios=[4, 1], hspace=0.3)
         self.ax = self.fig.add_subplot(gs[0])      
-        self.ax_mini = self.fig.add_subplot(gs[1]) 
+        self.ax_mini = self.fig.add_subplot(gs[1])
+        
+        # [NEW] Adjust margins to leave room for labels on the left (parity)
+        self.fig.subplots_adjust(left=0.1, right=0.95, top=0.92, bottom=0.1)
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.graph_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -150,7 +147,25 @@ class SessionViewer:
         if self.on_close_callback:
             self.on_close_callback()
         else:
-            self.master.destroy() 
+            self.request_close()
+
+    def request_close(self):
+        """Standard cleanup for component shutdown"""
+        self.is_playing = False
+        self.playback_offset = 0
+        try:
+            if hasattr(self, 'timer_id') and self.timer_id:
+                self.master.after_cancel(self.timer_id)
+                self.timer_id = None
+        except: pass
+        
+        try:
+            self.stop_playback(reset=True)
+        except: pass
+        
+        try:
+            self.master.destroy()
+        except: pass
 
     def log(self, msg):
         print(f"[Viewer] {msg}")
@@ -176,11 +191,10 @@ class SessionViewer:
             spine.set_edgecolor('#555555')
             spine.set_zorder(100)
             
-        self.ax.tick_params(axis='x', colors='lightgray')
-        self.ax.tick_params(axis='y', colors='lightgray')
+        self.ax.get_yaxis().set_visible(False) # [NEW] Hide standard Y-axis
         
         self.ax.set_xlim(-WINDOW_PAST, WINDOW_FUTURE)
-        self.ax.set_ylim(0, 6.5) 
+        self.ax.set_ylim(-5, 105) # [MOD] Fixed linear display space
         
         self.ax.set_title("GSR Zoomed (-7s to +3s)", fontsize=12, fontweight='bold', color='white')
         
@@ -191,14 +205,29 @@ class SessionViewer:
         self.ax.grid(True, which='major', color='#222', linestyle='-', linewidth=0.5, alpha=0.3)
         self.ax.axvline(x=0, color='white', linestyle='--', alpha=0.5, zorder=90)
 
-        self.line_ta_set, = self.ax.plot([], [], linestyle='--', color='#CC5500', linewidth=1.5, alpha=0.8, zorder=40, label='Set')
+        self.line_ta_set, = self.ax.plot([-WINDOW_PAST, WINDOW_FUTURE], [62.5, 62.5], linestyle='--', color='#CC5500', linewidth=1.5, alpha=0.8, zorder=40)
 
         self.lines_grid = []
-        for _ in range(5): 
-             l, = self.ax.plot([], [], linestyle=':', color='#CC5500', linewidth=1.0, alpha=0.5, zorder=30)
+        # Main App Units: +40, +20, -20, -40, -60 from 62.5
+        y_offsets = [102.5, 82.5, 42.5, 22.5, 2.5] 
+        for y_pos in y_offsets:
+             l, = self.ax.plot([-WINDOW_PAST, WINDOW_FUTURE], [y_pos, y_pos], linestyle=':', color='#CC5500', linewidth=1.0, alpha=0.5, zorder=30)
              self.lines_grid.append(l)
 
         self.line_gsr, = self.ax.plot([], [], lw=2, color='magenta', label='GSR', zorder=50)
+
+        # [NEW] Grid Labels (Docked to Left OUTSIDE at FIXED y-positions)
+        self.txt_ta_set_line = self.ax.text(-0.03, 62.5, "", color='#CC5500', fontsize=8, fontweight='bold', 
+                                            ha='right', va='top', rotation=45, transform=self.ax.get_yaxis_transform(), clip_on=False)
+        self.txt_grid_labels = []
+        for y_pos in y_offsets:
+            t = self.ax.text(-0.03, y_pos, "", color='#CC5500', fontsize=7, alpha=0.7, 
+                             ha='right', va='top', rotation=45, transform=self.ax.get_yaxis_transform(), clip_on=False)
+            self.txt_grid_labels.append(t)
+
+        # [NEW] Span Indicator (Top Right)
+        self.txt_span = self.ax.text(0.98, 0.95, "", color='#aaaaaa', fontsize=9, fontweight='bold',
+                                     ha='right', va='top', transform=self.ax.transAxes)
 
         # --- 2. Minimap ---
         self.ax_mini.clear()
@@ -270,8 +299,8 @@ class SessionViewer:
                  self.df['GSR'] = pd.to_numeric(self.df['TA'], errors='coerce')
             
             # [NEW] Fix Missing Metadata (ffill/bfill)
-            # Ensure columns exist first
-            cols_to_fix = ['Center', 'TA SET', 'Window', 'Win']
+            # Standard Headings for EK GSR Recordings
+            cols_to_fix = ['Center', 'TA SET', 'Window', 'Win', 'Window_Size', 'Sensitivity']
             for c in cols_to_fix:
                 if c in self.df.columns:
                     self.df[c] = self.df[c].ffill().bfill()
@@ -316,6 +345,10 @@ class SessionViewer:
             
             self.btn_play.config(state=tk.NORMAL)
             self.stop_playback(reset=True)
+            
+            # [NEW] Reset Smoothing on Load
+            self.smooth_c_val = None
+            self.smooth_w_val = None
 
         except Exception as e:
             self.log(f"Load Error: {e}")
@@ -382,6 +415,13 @@ class SessionViewer:
             self.start_playback()
 
     def animate(self):
+        # [FIX] Check global app_running status if available
+        try:
+             import __main__
+             if hasattr(__main__, 'app_running') and not __main__.app_running:
+                  return
+        except: pass
+
         if not self.is_playing: return
         elapsed = time.time() - self.start_time
         current_time = self.playback_offset + elapsed
@@ -420,50 +460,92 @@ class SessionViewer:
         w_val = 1.0
         has_meta = False
         
-        if idx_now < len(self.df):
-            row = self.df.iloc[idx_now]
-            if 'Center' in row: 
-                c_val = row['Center']; has_meta = True
-            elif 'TA SET' in row:
-                c_val = row['TA SET']; has_meta = True
-                            
-            if 'Window' in row: 
-                w_val = row['Window']; has_meta = True
-            elif 'Win' in row:
-                w_val = row['Win']; has_meta = True
+        # 1. SMART SCALING (Fitting visible window: -7s to +3s)
+        med_start = current_time - WINDOW_PAST
+        med_end = current_time + WINDOW_FUTURE
+        idx_med_start = np.searchsorted(self.time_index, med_start)
+        idx_med_end = np.searchsorted(self.time_index, med_end)
+        med_view = self.df.iloc[idx_med_start:idx_med_end]
+        
+        if med_view.empty:
+            # Fallback if no data is in view
+            c_val = 1.0
+            target_w = 0.125
+        else:
+            # Center (Pivot) is the median of the current 10s window
+            c_val = med_view['GSR'].median()
+            
+            # [NEW] "Smart Zoom" - Calculate w_needed to fit peaks in med_view
+            y_raw_m = med_view['GSR'].values
+            log_vals_m = np.log10(np.maximum(0.01, y_raw_m))
+            log_min_m = np.min(log_vals_m)
+            log_max_m = np.max(log_vals_m)
+            log_med_m = np.median(log_vals_m)
+            
+            # Solve for W that fits both bounds centered at med (62.5% height)
+            w_for_max = (log_max_m - log_med_m) / 0.32 # 0.375 total but with margin
+            w_for_min = (log_med_m - log_min_m) / 0.58 # 0.625 total but with margin
+            
+            needed_w = max(w_for_max, w_for_min)
+            # 0.05 is a sensible (~12% span) floor to prevent over-zooming on noise
+            target_w = max(0.05, needed_w)
 
-        sens_mult = self.scale_sens.get()
-        eff_win = w_val / sens_mult
+        # [NEW] Seek-Snap: Reset smoothing if jumping > 1 second (Scrubbing/Seek)
+        is_jump = abs(current_time - self.last_plot_time) > 1.0
+        self.last_plot_time = current_time
+
+        # [NEW] Asymmetric Smoothed Transitions (LERP)
+        if self.smooth_c_val is None or is_jump:
+            self.smooth_c_val = c_val
+            self.smooth_w_val = target_w
+        else:
+            # Center follows at standard speed
+            self.smooth_c_val = (0.10 * c_val) + (0.90 * self.smooth_c_val)
+            
+            # Asymmetric Window: Fast expand, very slow shrink
+            if target_w > self.smooth_w_val:
+                w_factor = 0.30 # Catch peaks quickly
+            else:
+                w_factor = 0.02 # [TUNE] Faster recovery (1-2s typical)
+                
+            self.smooth_w_val = (w_factor * target_w) + ((1.0 - w_factor) * self.smooth_w_val)
+
+        eff_win = self.smooth_w_val
+        log_center = math.log10(max(0.01, self.smooth_c_val))
+
+        # [NEW] Update Span % based on smoothed window
+        try:
+            span_pct = (math.pow(10, eff_win) - 1.0) * 100.0
+            self.txt_span.set_text(f"SPAN: {span_pct:.1f}%")
+        except: pass
         
-        unit_val = 0.2 * eff_win
-        
+        # [MOD] Locked fixed 62.5% centering logic (Map data to -5 to 105)
+        # log_center = math.log10(max(0.01, self.smooth_c_val))
+        # eff_win = self.smooth_w_val
+
         if view.empty:
             self.line_gsr.set_data([], [])
         else:
             x_data = view['Rel_Time'].values - current_time 
-            y_data = view['GSR'].values
-            self.line_gsr.set_data(x_data, y_data)
-            
-            if self.var_track.get():
-                if len(y_data) > 1:
-                    ymin, ymax = y_data.min(), y_data.max()
-                    pad = 0.1
-                    self.ax.set_ylim(ymin - pad, ymax + pad)
-            else:
-                min_p = c_val - (0.625 * eff_win)
-                max_p = c_val + (0.375 * eff_win)
-                self.ax.set_ylim(min_p, max_p)
+            # Data Mapping Transformation
+            y_raw = view['GSR'].values
+            y_log = np.log10(np.maximum(0.01, y_raw))
+            # Map log space to screen % space: 62.5 is center, eff_win is the zoom
+            y_mapped = 62.5 + ((y_log - log_center) / eff_win) * 100.0
+            self.line_gsr.set_data(x_data, y_mapped)
 
-        x_span = np.array([-WINDOW_PAST, WINDOW_FUTURE])
-        
-        if self.line_ta_set:
-            self.line_ta_set.set_data(x_span, [c_val, c_val])
+        # Update Differential TA Labels for the FIXED grid lines
+        self.txt_ta_set_line.set_text(f"TA SET: {self.smooth_c_val:.2f}")
             
         unit_mults = [2, 1, -1, -2, -3]
-        for i, l in enumerate(self.lines_grid):
+        for i, t_label in enumerate(self.txt_grid_labels):
             if i < len(unit_mults):
-                u_y = c_val + (unit_mults[i] * unit_val)
-                l.set_data(x_span, [u_y, u_y])
+                # Calculate differential TA (+/- change from center)
+                target_log = log_center + (unit_mults[i] * 0.2 * eff_win)
+                target_ta = math.pow(10, target_log)
+                delta_ta = target_ta - self.smooth_c_val
+                sign = "+" if delta_ta > 0 else ""
+                t_label.set_text(f"{sign}{delta_ta:.2f} TA")
 
         # 2. Minimap
         if self.mini_cursor:
