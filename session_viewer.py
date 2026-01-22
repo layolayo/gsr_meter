@@ -189,13 +189,10 @@ class SessionViewer:
         
         self.ax.set_title("EK GSR Session Viewer (Click Minimap to Seek)", fontsize=12, fontweight='bold', color='white')
         
-        # [NEW] Time-based X-axis labels (mm:ss format)
+        # [NEW] Relative X-axis labels for Main Plot (-7s to +3s)
         ticks = list(range(int(-WINDOW_PAST), int(WINDOW_FUTURE)+1))
         self.ax.set_xticks(ticks)
         self.ax.tick_params(axis='x', colors='lightgray', labelsize=8)
-        
-        # Format labels as mm:ss relative to current time
-        # We'll update these dynamically in update_plot
         self.ax.set_xticklabels([str(x) if x != 0 else "NOW" for x in ticks])
 
         self.ax.grid(True, which='major', color='#222', linestyle='-', linewidth=0.5, alpha=0.3)
@@ -245,6 +242,14 @@ class SessionViewer:
         self.ax_mini.tick_params(axis='x', colors='lightgray', labelsize=8)
         self.ax_mini.tick_params(axis='y', colors='lightgray', labelsize=8)
         self.ax_mini.set_title("Full Session Overlay (Click to Seek)", fontsize=10, color='gray') # [MOD] Title hint
+        
+        # [NEW] Absolute Time Formatting for Minimap (mm:ss)
+        from matplotlib.ticker import FuncFormatter
+        def time_formatter(x, pos):
+            mins = int(x) // 60
+            secs = int(x) % 60
+            return f"{mins:02}:{secs:02}"
+        self.ax_mini.xaxis.set_major_formatter(FuncFormatter(time_formatter))
         
         
         if self.df is not None and not self.df.empty:
@@ -514,19 +519,6 @@ class SessionViewer:
 
         if self.df is None or self.time_index is None: return
         
-        # [NEW] Update X-axis labels with mm:ss format
-        ticks = list(range(int(-WINDOW_PAST), int(WINDOW_FUTURE)+1))
-        labels = []
-        for offset in ticks:
-            abs_time = current_time + offset
-            if offset == 0:
-                labels.append("NOW")
-            else:
-                mins = int(abs_time) // 60
-                secs = int(abs_time) % 60
-                labels.append(f"{mins:02}:{secs:02}")
-        self.ax.set_xticklabels(labels)
-
         # 1. Update Zoomed Graph
         win_start = current_time - WINDOW_PAST
         win_end = current_time + WINDOW_FUTURE
