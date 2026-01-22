@@ -138,21 +138,10 @@ class SessionViewer:
         self.init_plot()
 
     def request_close(self):
-        self.stop_playback(reset=True)
-        if self.timer_id:
-            try: self.master.after_cancel(self.timer_id)
-            except: pass
-            self.timer_id = None
-            
-        if self.on_close_callback:
-            self.on_close_callback()
-        else:
-            self.request_close()
-
-    def request_close(self):
         """Standard cleanup for component shutdown"""
         self.is_playing = False
         self.playback_offset = 0
+        
         try:
             if hasattr(self, 'timer_id') and self.timer_id:
                 self.master.after_cancel(self.timer_id)
@@ -163,9 +152,9 @@ class SessionViewer:
             self.stop_playback(reset=True)
         except: pass
         
-        try:
-            self.master.destroy()
-        except: pass
+        # Call the parent callback to return to main view
+        if self.on_close_callback:
+            self.on_close_callback()
 
     def log(self, msg):
         print(f"[Viewer] {msg}")

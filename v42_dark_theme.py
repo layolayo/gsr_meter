@@ -753,10 +753,7 @@ if __name__ == "__main__":
     
     update_zoom_ui() # Initial draw
     
-       
-    # [FIX] Load Config
-    # load_config() already called at top-level potentially, but ensured here if needed.
-       
+             
     def start_calibration(event):
         global calib_mode, calib_step, calib_phase, calib_start_time, calib_base_ta, calib_min_ta, calib_vals, calib_step_start_time
         global CALIB_PIVOT_TA, ZOOM_COEFFICIENT
@@ -1270,9 +1267,14 @@ if __name__ == "__main__":
     def exit_viewer():
         global current_view, viewer_frame, sess_viewer
         
-        # 0. Definitive Cleanup
+        # 0. Stop playback and cleanup viewer state directly
         if sess_viewer:
-             try: sess_viewer.request_close()
+             try: 
+                 sess_viewer.is_playing = False
+                 sess_viewer.stop_playback(reset=True)
+                 if sess_viewer.timer_id:
+                     sess_viewer.master.after_cancel(sess_viewer.timer_id)
+                     sess_viewer.timer_id = None
              except: pass
 
         # 1. Hide Viewer
