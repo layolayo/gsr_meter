@@ -37,6 +37,7 @@ R_REF = 83.0
 # --- GLOBAL VARIABLES ---
 latest_gsr_ta = 0.0
 GSR_CENTER_VAL = 3.0
+GSR_CENTER_TARGET = 3.0 # [NEW] Target center for smooth dampening
 # BASE_SENSITIVITY removed in favor of LOG_WINDOW_HEIGHT
 LOG_WINDOW_HEIGHT = 0.05   # [MOD] Much higher starting sensitivity (approx 13.3x linear)
 ZOOM_COEFFICIENT = 1.0     
@@ -93,6 +94,13 @@ headset_on_head = False
 pattern_hold_until = 0.0
 
 
+def format_elapsed(total_seconds):
+    hours, remainder = divmod(int(total_seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    fraction = total_seconds - int(total_seconds)
+    return f"{hours:02}:{minutes:02}:{seconds:02}.{int(fraction * 100000):05}"
+
+
 def get_effective_window():
     global last_stable_window, motion_lock_expiry    
 
@@ -132,7 +140,7 @@ global_percent = 20
 # CSV Handles
 f_gsr = None
 writer_gsr: Optional[Any] = None
-recording_start_time: Optional[datetime] = None
+recording_start_time_obj: Optional[datetime] = None
 
 # --- AUDIO RECORDING STATE ---
 audio_filename = None
@@ -210,22 +218,23 @@ class GSRReader(threading.Thread):
                              # Log GSR
                              if writer_gsr:
                                   win = get_effective_window()
-                                  global CALIB_PIVOT_TA, active_event_label, motion_lock_expiry, current_pattern
+                                  global CALIB_PIVOT_TA, active_event_label, motion_lock_expiry, current_pattern, ta_accum, recording_start_time_obj
                                   note = active_event_label
                                   if note: active_event_label = ""
                                   
                                   is_motion = 1 if time.time() < motion_lock_expiry else 0
                                   # Calc Elapsed
-                                  elapsed = 0.0
-                                  if recording_start_time:
-                                       elapsed = (datetime.now() - recording_start_time).total_seconds()
+                                  elapsed_str = "00:00:00.00000"
+                                  if recording_start_time_obj:
+                                       elapsed_val = (datetime.now() - recording_start_time_obj).total_seconds()
+                                       elapsed_str = format_elapsed(elapsed_val)
                                   
                                   # Grab Global Delta TA (Calculated in Main Thread)
                                   # Note: Might be slightly delayed 60Hz vs 60Hz but adequate.
                                   #d_ta_log = latest_d_ta if 'latest_d_ta' in globals() else 0.0
                                        
                                   log_ta = math.log10(max(0.01, self.current_ta))
-                                  writer_gsr.writerow([ts_now, f"{elapsed:.3f}", f"{self.current_ta:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{log_ta:.5f}"])
+                                  writer_gsr.writerow([ts_now, elapsed_str, f"{self.current_ta:.5f}", f"{ta_accum:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{log_ta:.5f}"])
                              
                          except Exception: pass
 
@@ -273,8 +282,7 @@ def log_msg(msg):
     # Update UI directly if available
     target = None
     if 'ui_refs' in globals():
-         if 'system_line' in ui_refs: target = ui_refs['system_line']
-         elif 'log_text' in ui_refs: target = ui_refs['log_text']
+         if 'log_text' in ui_refs: target = ui_refs['log_text']
          
     if target:
         try: target.set_text(clean_msg)
@@ -523,7 +531,7 @@ if __name__ == "__main__":
     ui_refs['txt_ta_set_line'] = txt_ta_set_line
     # [NEW] Manual Blit Background Capture
     def on_draw(_event):
-        global graph_bg, bg_scores, bg_count, bg_detail, bg_status, bg_sens, bg_info, bg_left_labels
+        global graph_bg, bg_scores, bg_count, bg_detail, bg_status, bg_sens, bg_left_labels, bg_scale_panel, bg_system_panel
         if fig:
             if ax_left_labels: bg_left_labels = fig.canvas.copy_from_bbox(ax_left_labels.bbox)
             if ax_graph: graph_bg = fig.canvas.copy_from_bbox(ax_graph.bbox)
@@ -532,11 +540,8 @@ if __name__ == "__main__":
             if ax_detail: bg_detail = fig.canvas.copy_from_bbox(ax_detail.bbox)
             if ax_status: bg_status = fig.canvas.copy_from_bbox(ax_status.bbox)
             if ax_w_val:  bg_sens   = fig.canvas.copy_from_bbox(ax_w_val.bbox)
-            
-            # [FIX] Capture Info Panel too
-            if ax_info and current_view == 'main': 
-                try: bg_info = fig.canvas.copy_from_bbox(ax_info.bbox)
-                except Exception: pass
+            if ax_ctrl_bg: bg_scale_panel = fig.canvas.copy_from_bbox(ax_ctrl_bg.bbox)
+            if 'ax_system_bg' in ui_refs: bg_system_panel = fig.canvas.copy_from_bbox(ui_refs['ax_system_bg'].bbox)
             
             # [BIO-GRID REMOVED]
             
@@ -566,9 +571,8 @@ if __name__ == "__main__":
     txt_pattern.set_animated(True) # [FIX] Prevent Ghosting
     ui_refs['txt_pattern'] = txt_pattern
     
-    # === GSR CONTROLS CONTAINER ===
-    # A single bordered panel to contain Scale, Sens, Calibrate
-    r_ctrl = [0.835, 0.57, 0.13, 0.33] # H = 0.33
+    # === GSR CONTROLS PANEL ===
+    r_ctrl = [0.835, 0.68, 0.13, 0.22] # [MOD] Height and Pos for Scale grouping
     ax_ctrl_bg = reg_ax(r_ctrl, main_view_axes)
     ax_ctrl_bg.set_facecolor('#333333')
     ax_ctrl_bg.set_xticks([]); ax_ctrl_bg.set_yticks([])
@@ -576,19 +580,18 @@ if __name__ == "__main__":
     rect_ctrl_border = plt.Rectangle((0,0), 1, 1, transform=ax_ctrl_bg.transAxes, fill=False, ec='#555555', lw=2, clip_on=False)
     ax_ctrl_bg.add_patch(rect_ctrl_border)
     
-    # --- 1. Title: GSR Scale ---
-    # Relative to main axes to align easily
-    ax_scale_lbl = reg_ax([0.835, 0.85, 0.13, 0.04], main_view_axes)
+    # --- 1. Title: GSR SCALE ---
+    ax_scale_lbl = reg_ax([0.835, 0.86, 0.13, 0.03], main_view_axes)
     ax_scale_lbl.set_axis_off()
-    ax_scale_lbl.text(0.5, 0.5, "GSR Scale", ha='center', fontweight='bold', fontsize=12, color='white')
+    ax_scale_lbl.text(0.5, 0.5, "GSR SCALE", ha='center', va='center', fontweight='bold', fontsize=11, color='white')
     
-    # --- 2. Zoom Level Slider ---
-    ax_zoom_lbl = reg_ax([0.835, 0.81, 0.13, 0.03], main_view_axes)
+    # --- 2. Zoom Level Slider Label ---
+    ax_zoom_lbl = reg_ax([0.835, 0.825, 0.13, 0.025], main_view_axes)
     ax_zoom_lbl.set_axis_off()
-    ax_zoom_lbl.text(0.5, 0.5, "Zoom Level", ha='center', va='center', fontsize=10, fontweight='bold', color='#cccccc')
+    ax_zoom_lbl.text(0.5, 0.5, "Zoom Level", ha='center', va='center', fontsize=9, fontweight='bold', color='#cccccc')
     
     # [NEW] Slider Track
-    y_zoom = 0.77 
+    y_zoom = 0.79 
     ax_zoom_track = reg_ax([0.845, y_zoom, 0.11, 0.025], main_view_axes)
     ax_zoom_track.set_facecolor('#444444')
     ax_zoom_track.set_xticks([]); ax_zoom_track.set_yticks([])
@@ -608,6 +611,7 @@ if __name__ == "__main__":
     txt_z_mid  = ax_zoom_track.text(0.5, -0.6, "1x", transform=ax_zoom_track.transAxes, ha='center', va='top', fontsize=7, color='#ffffff')
     txt_z_right= ax_zoom_track.text(1.0, -0.6, "2.0x", transform=ax_zoom_track.transAxes, ha='right', va='top', fontsize=7, color='#888888')
 
+    # [FIX] Throttled Blitting: Restore background once, draw dynamic artists, blit
     ui_refs['ax_zoom_track'] = ax_zoom_track
     ui_refs['rect_track'] = rect_track
     ui_refs['thumb_zoom'] = thumb_zoom
@@ -637,12 +641,9 @@ if __name__ == "__main__":
         try:
              span_val = int(round(get_span_pct()))
              zoom_val = 1.0 / ZOOM_COEFFICIENT
-             txt_win_val.set_text(f"SPAN: {span_val}% [{zoom_val:.1f}x]")
+             txt_win_val.set_text(f"SPAN: {span_val}%")
+             txt_span_val.set_text(f"[{zoom_val:.1f}x]")
         except: pass
-
-        # [MOD] Clear second line as it's now consolidated
-        if 'txt_span_val' in ui_refs:
-             ui_refs['txt_span_val'].set_text("")
         
         # [FIX] REMOVED draw_idle() from main loop 
         # Redrawing is handled by final_blit()
@@ -731,8 +732,8 @@ if __name__ == "__main__":
     fig.canvas.mpl_connect('scroll_event', on_scroll)
 
     # --- 3. Sensitivity Value Display ---
-    y_sens_val = 0.70 # [REQ] NEATLY PLACED BELOW ZOOM (DO NOT CHANGE AGAIN)
-    ax_w_val = reg_ax([0.85, y_sens_val, 0.10, 0.04], main_view_axes)
+    y_sens_val = 0.705 # [MOD] Positioned neatly in panel
+    ax_w_val = reg_ax([0.85, y_sens_val, 0.10, 0.06], main_view_axes) # [MOD] Height 0.04 -> 0.06
     ui_refs['ax_w_val'] = ax_w_val
     ax_w_val.set_xticks([]); ax_w_val.set_yticks([])
     ax_w_val.set_facecolor('#333333') # [FIX] Ensure consistent background
@@ -740,9 +741,9 @@ if __name__ == "__main__":
     # Clear visual border
     ax_w_val.add_patch(plt.Rectangle((0,0), 1, 1, transform=ax_w_val.transAxes, fill=False, ec='#555555', lw=1))
     
-    # Value text (Consolidated)
-    txt_win_val = ax_w_val.text(0.5, 0.5, "", ha='center', va='center', fontsize=9, fontweight='bold', color='white')
-    txt_span_val = ax_w_val.text(0.5, 0.30, "", ha='center', va='center', fontsize=8, color='#aaaaaa')
+    # Value text (Split into two lines)
+    txt_win_val = ax_w_val.text(0.5, 0.72, "", ha='center', va='center', fontsize=11, fontweight='bold', color='white')
+    txt_span_val = ax_w_val.text(0.5, 0.28, "", ha='center', va='center', fontsize=10, color='#aaaaaa')
     
     txt_win_val.set_animated(True)
     txt_span_val.set_animated(True)
@@ -755,18 +756,7 @@ if __name__ == "__main__":
        
     # [FIX] Load Config
     # load_config() already called at top-level potentially, but ensured here if needed.
-    
-    # --- 4. Calibrate ---
-    ax_calib = reg_ax([0.85, 0.60, 0.10, 0.04], main_view_axes) # [MOD] Restored original position
-    ax_calib.set_zorder(100) 
-    ui_refs['ax_calib'] = ax_calib 
-    
-    btn_calib = Button(ax_calib, "Calibrate", color='#004488', hovercolor='#0066aa')
-    btn_calib.label.set_color('white')
-    ui_refs['btn_calib'] = btn_calib
-    btn_calib.ax.patch.set_animated(True)
-    btn_calib.label.set_animated(True)
-    
+       
     def start_calibration(event):
         global calib_mode, calib_step, calib_phase, calib_start_time, calib_base_ta, calib_min_ta, calib_vals, calib_step_start_time
         global CALIB_PIVOT_TA, ZOOM_COEFFICIENT
@@ -794,9 +784,7 @@ if __name__ == "__main__":
         global active_event_label
         active_event_label = "CALIB_START"
         update_gsr_center(latest_gsr_ta)
-        
-    btn_calib.on_clicked(start_calibration)
-    
+           
     
     def rounded_step(val): return round(val * 1000) / 1000.0 # Round to nearest 0.001
 
@@ -809,34 +797,29 @@ if __name__ == "__main__":
     last_calib_ratio = 0.0
 
     def update_gsr_center(val, force_pivot=False, reason="System"):
-        global GSR_CENTER_VAL, ta_accum, calib_mode # [FIX] Added ta_accum, calib_mode
-        global motion_lock_expiry # [NEW]
+        global GSR_CENTER_VAL, GSR_CENTER_TARGET, ta_accum, calib_mode # [FIX] Added GSR_CENTER_TARGET
+        global motion_lock_expiry 
         global CALIB_PIVOT_TA
-        
-        # Log the Update
-        if reason != "System" and reason != "Edge_Pull":
-             log_msg(f"{reason}: Center to {val:.2f}")
         
         # [NEW] TA Counter Logic (Count Drops)
         if counting_active:
              # [REQ] Global Motion Block
              if time.time() > motion_lock_expiry:
-                 diff = GSR_CENTER_VAL - val
-                 if diff > 0 and not calib_mode: 
+                 diff = GSR_CENTER_TARGET - val  # [MOD] Compare against Target
+                 # [FIX] Noise Floor (0.001): Block micro-jitter
+                 if diff > 0.001 and not calib_mode: 
                      ta_accum += diff
+                     print(f"[TA] Accumulating Drop: +{diff:.3f} (Total: {ta_accum:.2f})")
         
         if not calib_mode:
-            # Update Pivot ONLY if Forced (Calibration Complete)
             if force_pivot:
                  CALIB_PIVOT_TA = max(0.1, val)
                  log_msg(f"Pivot FORCE Set to {CALIB_PIVOT_TA:.2f}")
             else:
-                 # Standard Reset (User or Auto)
-                 # Only update Pivot if Reference Reset (Space/Button)
                  if reason.startswith("User"):
                       CALIB_PIVOT_TA = max(0.1, val)
         
-        GSR_CENTER_VAL = val
+        GSR_CENTER_TARGET = val # [MOD] Update Target only
         if val_txt: val_txt.set_text(f"TA SET: {val:.2f}")
 
     # Keyboard Control
@@ -846,7 +829,7 @@ if __name__ == "__main__":
     # Graph Bottom is now 0.20, so we have 0.04 to 0.20 to work with (Height 0.16)
     
     # 1. TA Counter Panel (Right Side of Left Block)
-    r_count = [0.20, 0.05, 0.20, 0.12]
+    r_count = [0.20, 0.015, 0.20, 0.12]
     ax_count_bg = reg_ax(r_count, main_view_axes)
     ax_count_bg.set_xticks([]); ax_count_bg.set_yticks([])
     
@@ -862,8 +845,8 @@ if __name__ == "__main__":
     txt_count_val.set_animated(True)
     
     # Buttons (Axes inside the panel area relative to Figure)
-    ax_btn_start = reg_ax([0.23, 0.06, 0.07, 0.04], main_view_axes)
-    ax_btn_reset = reg_ax([0.31, 0.06, 0.07, 0.04], main_view_axes)
+    ax_btn_start = reg_ax([0.23, 0.025, 0.07, 0.04], main_view_axes)
+    ax_btn_reset = reg_ax([0.31, 0.025, 0.07, 0.04], main_view_axes)
     
     # Ensure Z-Order (Axes Level)
     ax_count_bg.set_zorder(1)
@@ -935,7 +918,7 @@ if __name__ == "__main__":
 
 
     # 2. Scores Panel (Center)
-    r_score = [0.42, 0.05, 0.18, 0.12]
+    r_score = [0.42, 0.015, 0.18, 0.12]
     ax_scores = reg_ax(r_score, main_view_axes)
     ax_scores.set_xticks([]); ax_scores.set_yticks([])
     ax_scores.set_facecolor('#333333')
@@ -943,8 +926,8 @@ if __name__ == "__main__":
     rect_score_border = plt.Rectangle((0,0), 1, 1, transform=ax_scores.transAxes, fill=False, ec='#555555', lw=2, clip_on=False)
     ax_scores.add_patch(rect_score_border)
 
-    txt_ta_score = ax_scores.text(0.5, 0.75, "INST TA: --", ha='center', va='center', fontsize=16, fontweight='bold', color='white')
-    val_txt = ax_scores.text(0.5, 0.50, f"TA SET: {GSR_CENTER_VAL:.2f}", ha='center', va='center', fontsize=12, fontweight='bold', color='#aaaaaa')
+    txt_ta_score = ax_scores.text(0.5, 0.65, "INST TA: --", ha='center', va='center', fontsize=22, fontweight='bold', color='white')
+    val_txt = ax_scores.text(0.5, 0.30, f"TA SET: {GSR_CENTER_VAL:.2f}", ha='center', va='center', fontsize=18, fontweight='bold', color='#aaaaaa')
     txt_ta_score.set_animated(True)
     val_txt.set_animated(True)
      
@@ -980,7 +963,8 @@ if __name__ == "__main__":
     ui_refs['txt_gsr_status'] = txt_gsr_status
 
     # Record Button (Moved Left)
-    r_rc = [0.05, 0.12, 0.12, 0.05]
+    # [FIX] Big Record Button (Double Height)
+    r_rc = [0.05, 0.015, 0.12, 0.12]
     
     ax_rec = reg_ax(r_rc, main_view_axes)
     ax_rec.set_zorder(1000) # [FIX] Ensure top clickability
@@ -998,7 +982,7 @@ if __name__ == "__main__":
     session_start_ta = 0.0
 
     def start_actual_recording():
-        global is_recording, f_gsr, writer_gsr, recording_start_time
+        global is_recording, f_gsr, writer_gsr, recording_start_time_obj
         global notes_filename, audio_filename # [FIX] Restored audio_filename
         # [FIX] Audio Globals Removed (Using AudioHandler)
         global pending_rec, pending_notes, session_start_ta, counting_active, ta_accum # [FIX] Globals
@@ -1035,13 +1019,13 @@ if __name__ == "__main__":
              # Initialize GSR CSV
              f_gsr = open(fname_gsr, 'w', newline='')
              writer_gsr = csv.writer(f_gsr)
-             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Notes", "Pattern", "Log_TA"])
+             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA Counter", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Notes", "Pattern", "Log_TA"])
              
+             recording_start_time_obj = datetime.now()
              is_recording = True 
+             
              audio_handler.start_recording(audio_filename)
              audio_handler.sync_audio_stream(current_view)
-             
-             recording_start_time = datetime.now()
              
              ui_refs['btn_rec'].label.set_text("Stop")
              ui_refs['btn_rec'].color = '#aa0000'
@@ -1049,8 +1033,8 @@ if __name__ == "__main__":
              rec_text.set_visible(True)
              
              # Set Static Info
-             s_date = recording_start_time.strftime("%d %B %Y")
-             s_time = recording_start_time.strftime("%H:%M")
+             s_date = recording_start_time_obj.strftime("%d %B %Y")
+             s_time = recording_start_time_obj.strftime("%H:%M")
              if 'txt_sess_date' in ui_refs: ui_refs['txt_sess_date'].set_text(f"Date: {s_date}")
              if 'txt_sess_time' in ui_refs: ui_refs['txt_sess_time'].set_text(f"Time: {s_time}")
              
@@ -1062,7 +1046,7 @@ if __name__ == "__main__":
 
     def toggle_rec(_):
         #print("DEBUG: toggle_rec clicked") # [DEBUG]
-        global is_recording, f_gsr, writer_gsr, recording_start_time
+        global is_recording, f_gsr, writer_gsr, recording_start_time_obj
         global notes_filename, audio_filename
         global pending_rec, pending_notes, calib_mode, calib_step, calib_phase, calib_start_time, calib_base_ta, calib_min_ta, counting_active
         
@@ -1145,15 +1129,15 @@ if __name__ == "__main__":
              
              # [NEW] Append Summary to Notes
              try:
-                 if recording_start_time and notes_filename:
+                 if recording_start_time_obj and notes_filename:
                      end_time = datetime.now()
-                     dur = end_time - recording_start_time
+                     dur = end_time - recording_start_time_obj
                      total_sec = int(dur.total_seconds())
                      hours, remainder = divmod(total_sec, 3600)
                      mins, secs = divmod(remainder, 60)
                      final_len_str = f"{hours:02}:{mins:02}:{secs:02}"
                      
-                     start_fmt = recording_start_time.strftime("%H:%M:%S")
+                     start_fmt = recording_start_time_obj.strftime("%H:%M:%S")
                      
                      # Stats
                      end_ta = latest_gsr_ta
@@ -1175,9 +1159,8 @@ if __name__ == "__main__":
 
     ui_refs['btn_rec'].on_clicked(toggle_rec)
     
-    # 2. Scores Panel (Center)
     # 3. Session Details Panel (Right of Scores) (RESTORED v35 Position)
-    r_detail = [0.62, 0.05, 0.20, 0.12]
+    r_detail = [0.62, 0.015, 0.20, 0.12]
     ax_detail = reg_ax(r_detail, main_view_axes)
     ax_detail.set_xticks([]); ax_detail.set_yticks([])
     ax_detail.set_facecolor('#333333')
@@ -1191,26 +1174,45 @@ if __name__ == "__main__":
     txt_sess_date = ax_detail.text(0.05, 0.60, "Date: --", ha='left', va='center', fontsize=9, color='#ccc')
     txt_sess_time = ax_detail.text(0.05, 0.40, "Time: --", ha='left', va='center', fontsize=9, color='#ccc')
     txt_sess_len  = ax_detail.text(0.05, 0.15, "Duration : 00:00:00", ha='left', va='center', fontsize=10, fontweight='bold', color='white')
+    txt_sess_date.set_animated(True)
+    txt_sess_time.set_animated(True)
     txt_sess_len.set_animated(True)
     
     ui_refs['txt_sess_date'] = txt_sess_date
     ui_refs['txt_sess_time'] = txt_sess_time
     ui_refs['txt_sess_len'] = txt_sess_len
 
-    r_ts = [0.05, 0.06, 0.12, 0.05]
+    # --- SYSTEM CONTROLS PANEL ---
+    r_sys_bg = [0.835, 0.40, 0.13, 0.25]
+    ax_system_bg = reg_ax(r_sys_bg, main_view_axes)
+    ax_system_bg.set_facecolor('#333333')
+    ax_system_bg.set_xticks([]); ax_system_bg.set_yticks([])
+    # Border
+    rect_sys_border = plt.Rectangle((0,0), 1, 1, transform=ax_system_bg.transAxes, fill=False, ec='#555555', lw=2, clip_on=False)
+    ax_system_bg.add_patch(rect_sys_border)
+    # Title
+    ax_system_bg.text(0.5, 0.93, "SYSTEM CONTROLS", transform=ax_system_bg.transAxes, ha='center', va='center', fontsize=10, fontweight='bold', color='white')
+    ui_refs['ax_system_bg'] = ax_system_bg
+
+    # [FIX] Relocated Buttons (Now inside SYSTEM CONTROLS)
+    r_calib = [0.84, 0.54, 0.10, 0.04]
+    ax_calib = reg_ax(r_calib, main_view_axes)
+    ui_refs['btn_calib'] = Button(ax_calib, "Calibrate", color='#004488', hovercolor='#0066aa')
+    ui_refs['btn_calib'].label.set_color('white') #'#eee'
+    ui_refs['btn_calib'].ax.patch.set_animated(True)
+    ui_refs['btn_calib'].label.set_animated(True)    
+    ui_refs['btn_calib'].on_clicked(start_calibration)
+
+    # [FIX] Relocated Buttons (Now inside SYSTEM CONTROLS)
+    r_ts = [0.84, 0.11, 0.10, 0.04]
     ax_to_set = reg_ax(r_ts, main_view_axes)
     ui_refs['btn_to_settings'] = Button(ax_to_set, "Settings >", color='#444444', hovercolor='#666666')
     ui_refs['btn_to_settings'].label.set_color('white') #'#eee'
     ui_refs['btn_to_settings'].ax.patch.set_animated(True)
     ui_refs['btn_to_settings'].label.set_animated(True)
     
-    # [NEW] Manual Button (Next to Settings)
-    # Settings is at x=0.05, w=0.12 (Ends at 0.17)
-    # Manual at x=0.19, w=0.07 (Ends at 0.26)
-    # [NEW] Manual Button (Right Side, Under Bio-Grid)
-    # Bio-Grid Text ends at y=0.29.
-    # New Coordinates: Right Column (0.835), y=0.20, w=0.13, h=0.04 (Shifted for Square Grid)
-    r_man = [0.835, 0.20, 0.13, 0.04]
+    # [NEW] Manual Button Standardized
+    r_man = [0.84, 0.21, 0.10, 0.04]
     ax_man = reg_ax(r_man, main_view_axes)
     ui_refs['btn_manual'] = Button(ax_man, "Manual", color='#2980b9', hovercolor='#3498db')
     ui_refs['btn_manual'].label.set_color('white')
@@ -1219,9 +1221,9 @@ if __name__ == "__main__":
     ui_refs['btn_manual'].on_clicked(show_manual_popup)
 
     # [NEW] Viewer Button (Below Manual)
-    # Manual: x=0.835, y=0.20, h=0.04
-    # Viewer: x=0.835, y=0.155 (Gap 0.005), w=0.13, h=0.04
-    r_view = [0.835, 0.155, 0.13, 0.04]
+    # Manual: x=0.85, y=0.20, h=0.04
+    # Viewer: x=0.85, y=0.155 (Gap 0.005), w=0.13, h=0.04
+    r_view = [0.84, 0.16, 0.10, 0.04]
     ax_view = reg_ax(r_view, main_view_axes)
     ui_refs['btn_viewer'] = Button(ax_view, "Viewer", color='#552255', hovercolor='#773377')
     ui_refs['btn_viewer'].label.set_color('white')
@@ -1350,13 +1352,7 @@ if __name__ == "__main__":
     # ui_refs['btn_back'].ax.patch.set_animated(True)
     # ui_refs['btn_back'].label.set_animated(True)
     
-    # SYSTEM INFO
-    r_info = [0.0, 0.0, 1.0, 0.04] 
-    ax_info = reg_ax(r_info, main_view_axes) # [FIX] Move to Main View
-    ax_info.set_axis_off()
-    system_line = ax_info.text(0.5, 0.5, "Waiting for Info...", ha="center", family=['Arial', 'Noto Emoji', 'sans-serif'], color='lightgray')
-    system_line.set_animated(True) # [FIX] For Manual Blit
-    ui_refs['system_line'] = system_line # Store ref
+    # [SYSTEM LINE REMOVED]
     
     def teleport_off(ax_list):
         for a in ax_list: a.set_visible(False); a.set_position([1.5, 1.5, 0.01, 0.01])
@@ -1476,24 +1472,12 @@ if __name__ == "__main__":
         global last_motion_log, motion_lock_expiry, motion_prev_ta, motion_prev_time
         global headset_on_head, LOG_WINDOW_HEIGHT
         global calib_mode, calib_phase, calib_step, calib_start_time, calib_step_start_time, calib_base_ta, calib_min_ta, calib_vals, last_calib_ratio
-        global recording_start_time, is_recording, session_start_ta, pending_rec
+        global recording_start_time_obj, is_recording, session_start_ta, pending_rec
         global active_event_label
         global first_run_center # [FIX] Add global
-        global graph_bg, bg_scores, bg_count, bg_detail, bg_status, bg_sens, bg_info
+        global GSR_CENTER_VAL, GSR_CENTER_TARGET # [FIX] Add globals for smooth dampening
+        global graph_bg, bg_scores, bg_count, bg_detail, bg_status, bg_sens, bg_info, bg_scale_panel, bg_system_panel
         
-        # [NEW] Manual Blit Restore (Main View Only)
-        if current_view == 'main':
-            try:
-                if graph_bg: fig.canvas.restore_region(graph_bg)
-                if bg_scores: fig.canvas.restore_region(bg_scores)
-                if bg_count:  fig.canvas.restore_region(bg_count)
-                if bg_detail: fig.canvas.restore_region(bg_detail)
-                if bg_status: fig.canvas.restore_region(bg_status)
-                if bg_sens:   fig.canvas.restore_region(bg_sens)
-                if bg_info:   fig.canvas.restore_region(bg_info)
-                # if bg_grid:   fig.canvas.restore_region(bg_grid)
-                # if bg_grid_txt: fig.canvas.restore_region(bg_grid_txt)
-            except Exception: pass
 
         if not first_run_center and latest_gsr_ta > 0.1:
              #print(f"[Auto-Center] First Reading: {latest_gsr_ta}")
@@ -1534,39 +1518,38 @@ if __name__ == "__main__":
                  finally: ignore_ui_callbacks = False
         
         # [REMOVED HRM LOGIC]
-        # System Line (Mic Only)
-        sys_parts = [f"Mic: {audio_handler.current_mic_name}"]
-        system_line.set_text(" | ".join(sys_parts))
+        # System Line Part Removed (system_line)
         
         # [NEW] Rolling TA Set (10s Median - Matches Visible Graph)
         if latest_gsr_ta > 0.1 and not calib_mode:
-            # Use last 600 samples (~10 seconds at 60Hz)
-            # This matches the visible graph history for intuitive tracking.
             history_rolling = list(bands_history['GSR'])[-600:]
-            if len(history_rolling) > 60: 
+            if len(history_rolling) > 60:
                 rolling_median = float(np.median(history_rolling))
                 
-                # Update Center via centralized function
-                update_gsr_center(rolling_median, reason="System")
-            
-            # [NEW] Elastic Centering (Edge Pull)
-            # If the current TA is hitting the edge, pull the center immediately
-            # Formula: rel_y = (log_task - min_p_log) / log_win * 100.0
-            log_curr = math.log10(max(0.01, latest_gsr_ta))
-            eff_win = get_effective_window()
-            log_center = math.log10(max(0.01, GSR_CENTER_VAL))
-            min_p_log = log_center - (0.625 * eff_win)
-            
-            rel_y = (log_curr - min_p_log) / eff_win * 100.0
-            
-            if rel_y > 92 or rel_y < 8:
-                 # [MOD] Dampened Pull (Elastic) instead of Instant Snap
-                 # Target: Align TA exactly with the reference line (62.5% height)
-                 # Moving 10% of the distance per frame results in a smooth "elastic" return.
-                 target = latest_gsr_ta
-                 current = GSR_CENTER_VAL
-                 new_val = current + (target - current) * 0.10
-                 update_gsr_center(new_val, reason="Edge_Pull")
+                # Determine "Target Center"
+                log_curr = math.log10(max(0.01, latest_gsr_ta))
+                eff_win = get_effective_window()
+                log_center = math.log10(max(0.01, GSR_CENTER_VAL))
+                min_p_log = log_center - (0.625 * eff_win)
+                rel_y = (log_curr - min_p_log) / eff_win * 100.0
+                
+                log_smooth = math.log10(max(0.01, rolling_median))
+                rel_y_smooth = (log_smooth - min_p_log) / eff_win * 100.0
+                
+                target_center = rolling_median
+                reason = "System"
+                
+                if rel_y_smooth > 92 or rel_y_smooth < 8:
+                    target_center = latest_gsr_ta
+                    reason = "Edge_Pull"
+                
+                # [MOD] Set TARGET, actual dampening happens below
+                update_gsr_center(target_center, reason=reason)
+        
+        # [NEW] Unified Dampening Loop (Runs Every Frame, even in Calib)
+        # 5% step per frame towards wherever the target is.
+        if abs(GSR_CENTER_TARGET - GSR_CENTER_VAL) > 0.0001:
+             GSR_CENTER_VAL += (GSR_CENTER_TARGET - GSR_CENTER_VAL) * 0.05
             
         # [NEW] Update GSR UI
         # 1. Update Text
@@ -1667,25 +1650,6 @@ if __name__ == "__main__":
                   else:
                        ui_refs['txt_gsr_status'].set_color('red')
              
-        # [ALWAYS RUN] Graph Line Logic below...
-        if latest_gsr_ta > 0.01: # Only if valid signal
-            # Recalculate limits for check (Log Space)
-            log_curr = math.log10(latest_gsr_ta)
-            log_center = math.log10(max(0.01, GSR_CENTER_VAL))
-            
-            min_p_log = log_center - (0.625 * eff_win)
-            max_p_log = log_center + (0.375 * eff_win)
-            
-            if log_curr < min_p_log or log_curr > max_p_log:
-                if is_steady and not is_moving:
-                    # Auto-Center
-                    r_type = "Fall" if log_curr < min_p_log else "Rise"
-                    update_gsr_center(latest_gsr_ta, reason=f"Auto-Reset ({r_type})")
-                else:
-                     # Log blocked boost reset
-                     if time.time() - last_motion_log > 2.0:
-                         log_msg(f"Motion Detected (Vel={velocity:.1f}, Rng={rng:.2f}) -> Auto-Reset BLOCKED")
-                         last_motion_log = time.time()
             
         if current_view == 'main':
              # [REQ] Update Pattern Engine
@@ -1991,8 +1955,8 @@ if __name__ == "__main__":
                      ui_refs['txt_calib_overlay'].set_visible(False)
 
              # [NEW] specific update for Session Detail Panel
-             if is_recording and recording_start_time:
-                 elapsed = datetime.now() - recording_start_time
+             if is_recording and recording_start_time_obj:
+                 elapsed = datetime.now() - recording_start_time_obj
                  total_sec = int(elapsed.total_seconds())
                  hours, remainder = divmod(total_sec, 3600)
                  mins, secs = divmod(remainder, 60)
@@ -2049,69 +2013,60 @@ if __name__ == "__main__":
 
             if current_view != 'main': return
             
-            # Draw Dynamic Artists
+            # 1. Restore ALL backgrounds first
+            if 'graph_bg' in globals() and graph_bg: fig.canvas.restore_region(graph_bg)
+            if 'bg_left_labels' in globals() and bg_left_labels: fig.canvas.restore_region(bg_left_labels)
+            if 'bg_scores' in globals() and bg_scores: fig.canvas.restore_region(bg_scores)
+            if 'bg_count' in globals() and bg_count: fig.canvas.restore_region(bg_count)
+            if 'bg_detail' in globals() and bg_detail: fig.canvas.restore_region(bg_detail)
+            if 'bg_status' in globals() and bg_status: fig.canvas.restore_region(bg_status)
+            if 'bg_sens' in globals() and bg_sens: fig.canvas.restore_region(bg_sens)
+            if 'bg_scale_panel' in globals() and bg_scale_panel: fig.canvas.restore_region(bg_scale_panel)
+            if 'bg_system_panel' in globals() and bg_system_panel: fig.canvas.restore_region(bg_system_panel)
+
+            # 2. Draw ALL dynamic content
             if line: ax_graph.draw_artist(line)
-            # Draw Left Labels
-            if 'bg_left_labels' in globals() and bg_left_labels:
-                fig.canvas.restore_region(bg_left_labels)
-                
-            if 'txt_ta_set_line' in ui_refs: ax_left_labels.draw_artist(ui_refs['txt_ta_set_line'])
+            if 'txt_pattern' in ui_refs: ax_graph.draw_artist(ui_refs['txt_pattern'])
             
-            # [NEW] Draw Grid Labels
+            if 'txt_ta_set_line' in ui_refs: ax_left_labels.draw_artist(ui_refs['txt_ta_set_line'])
             for u_idx in [2, 1, -1, -2, -3]:
                 key = f'txt_grid_{u_idx}'
                 if key in ui_refs: ax_left_labels.draw_artist(ui_refs[key])
                 
-            fig.canvas.blit(ax_left_labels.bbox)
+            for s in ax_graph.spines.values(): ax_graph.draw_artist(s)
             
-            # [FIX] Redraw Spines ON TOP of lines so they don't get covered
-            for s in ax_graph.spines.values():
-                ax_graph.draw_artist(s)
-            
-            # Draw Scores/Text
             try: ax_scores.draw_artist(txt_ta_score)
             except NameError: pass
             try: ax_scores.draw_artist(val_txt)
             except NameError: pass
             
-            # Draw System Line
-            if 'system_line' in ui_refs: 
-                 ax_info.draw_artist(ui_refs['system_line'])
-            
-            # Draw Counter
             try: ax_count_bg.draw_artist(txt_count_val)
             except NameError: pass
             
-            # Draw Status
             if 'txt_gsr_status' in ui_refs: ax_status.draw_artist(ui_refs['txt_gsr_status'])
-            # [HRM REMOVED]
             try: ax_status.draw_artist(txt_audio)
             except NameError: pass
             try: ax_status.draw_artist(rec_text)
             except NameError: pass
             
-            # Draw Detail Panel Info
             if 'txt_sess_len' in ui_refs: ax_detail.draw_artist(ui_refs['txt_sess_len'])
-            
-            # [BIO-GRID REMOVED]
-            if 'txt_pattern' in ui_refs: ax_graph.draw_artist(ui_refs['txt_pattern'])
+            if 'txt_sess_date' in ui_refs: ax_detail.draw_artist(ui_refs['txt_sess_date'])
+            if 'txt_sess_time' in ui_refs: ax_detail.draw_artist(ui_refs['txt_sess_time'])
 
-            # [NEW] Draw Overlays (Calibration / Motion)
             if 'txt_calib_overlay' in ui_refs and ui_refs['txt_calib_overlay'].get_visible():
                 ax_overlay.draw_artist(ui_refs['txt_calib_overlay'])
             if 'txt_motion_overlay' in ui_refs and ui_refs['txt_motion_overlay'].get_visible():
                 ax_overlay.draw_artist(ui_refs['txt_motion_overlay'])
 
-            # [CRITICAL] Draw Buttons Manually so they overlay properly
+            # Draw Buttons
             for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer', 'btn_calib']:
                  if b_key in ui_refs and ui_refs[b_key].ax.get_visible():
                       b = ui_refs[b_key]
-                      b.ax.draw_artist(b.ax.patch) # Background (Normal/Hover)
-                      b.ax.draw_artist(b.label)    # Text
+                      b.ax.draw_artist(b.ax.patch)
+                      b.ax.draw_artist(b.label)
             
-            # [NEW] Draw Zoom Slider & Text (BEFORE Blit)
+            # Draw Zoom Slider
             if ax_w_val: 
-                # Use ax_w_val.patch to clear bg if needed, or blit if static
                 ax_w_val.draw_artist(ax_w_val.patch)
                 ax_w_val.draw_artist(txt_win_val)
                 if 'txt_span_val' in ui_refs: ax_w_val.draw_artist(ui_refs['txt_span_val'])
@@ -2120,36 +2075,38 @@ if __name__ == "__main__":
                  zt = ui_refs['ax_zoom_track']
                  zt.draw_artist(zt.patch)
                  zt.draw_artist(ui_refs['rect_track'])
-                 # [NEW] Draw Labels & Ticks
                  for t in zt.texts: zt.draw_artist(t)
                  for l in zt.lines: zt.draw_artist(l)
                  zt.draw_artist(ui_refs['thumb_zoom'])
-                 # [DEBUG] print("Blitting Slider")
 
-            # Blit All Regions
+            # 3. Blit ALL modified regions in one pass
             if ax_graph: fig.canvas.blit(ax_graph.bbox)
+            if ax_left_labels: fig.canvas.blit(ax_left_labels.bbox)
             if ax_scores: fig.canvas.blit(ax_scores.bbox)
             if ax_count_bg: fig.canvas.blit(ax_count_bg.bbox)
             if ax_w_val: fig.canvas.blit(ax_w_val.bbox)
             if ax_status: fig.canvas.blit(ax_status.bbox)
             if ax_detail: fig.canvas.blit(ax_detail.bbox)
-            if ax_info: fig.canvas.blit(ax_info.bbox) 
-            if 'ax_calib' in ui_refs: fig.canvas.blit(ui_refs['ax_calib'].bbox) 
-            if 'ax_w_val' in ui_refs: fig.canvas.blit(ui_refs['ax_w_val'].bbox)
+            
+            if ax_ctrl_bg: fig.canvas.blit(ax_ctrl_bg.bbox)
+            if 'ax_system_bg' in ui_refs: fig.canvas.blit(ui_refs['ax_system_bg'].bbox)
+            
             if 'ax_zoom_track' in ui_refs: fig.canvas.blit(ui_refs['ax_zoom_track'].bbox)
-            # [BIO-GRID REMOVED]
-            # [CRITICAL] Blit Detached Buttons
+            if 'ax_calib' in ui_refs: fig.canvas.blit(ui_refs['ax_calib'].bbox)
             if 'btn_rec' in ui_refs: fig.canvas.blit(ui_refs['btn_rec'].ax.bbox)
-            if 'btn_to_settings' in ui_refs and ui_refs['btn_to_settings'].ax.get_visible(): 
-                fig.canvas.blit(ui_refs['btn_to_settings'].ax.bbox)
-            if 'btn_manual' in ui_refs and 'btn_to_settings' in ui_refs and ui_refs['btn_to_settings'].ax.get_visible():
-                # [FIX] Blit if Main View is active (checked via proxy)
-                fig.canvas.blit(ui_refs['btn_manual'].ax.bbox)
-                if 'btn_viewer' in ui_refs: fig.canvas.blit(ui_refs['btn_viewer'].ax.bbox)
-            if 'btn_back' in ui_refs and ui_refs['btn_back'].ax.get_visible(): 
-                fig.canvas.blit(ui_refs['btn_back'].ax.bbox)
+            if 'btn_to_settings' in ui_refs and ui_refs['btn_to_settings'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_to_settings'].ax.bbox)
+            if 'btn_manual' in ui_refs and ui_refs['btn_manual'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_manual'].ax.bbox)
+            if 'btn_viewer' in ui_refs and ui_refs['btn_viewer'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_viewer'].ax.bbox)
+            if 'btn_back' in ui_refs and ui_refs['btn_back'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_back'].ax.bbox)
             
             fig.canvas.flush_events()
+
+            
+            
+            
+            
+
+            
             
         # Monkey patch update to call final_blit
         original_update = update
