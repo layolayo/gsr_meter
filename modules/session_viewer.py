@@ -200,6 +200,7 @@ class SessionViewer:
         
         ticks = list(range(int(-WINDOW_PAST), int(WINDOW_FUTURE)+1))
         self.ax.set_xticks(ticks)
+        self.ax.tick_params(axis='x', colors='lightgray', labelsize=8)
         self.ax.set_xticklabels([str(x) if x != 0 else "NOW" for x in ticks])
 
         self.ax.grid(True, which='major', color='#222', linestyle='-', linewidth=0.5, alpha=0.3)
@@ -236,8 +237,8 @@ class SessionViewer:
         for spine in self.ax_mini.spines.values():
             spine.set_edgecolor('#444444')
             
-        self.ax_mini.tick_params(axis='x', colors='gray', labelsize=8)
-        self.ax_mini.tick_params(axis='y', colors='gray', labelsize=8)
+        self.ax_mini.tick_params(axis='x', colors='lightgray', labelsize=8)
+        self.ax_mini.tick_params(axis='y', colors='lightgray', labelsize=8)
         self.ax_mini.set_title("Full Session Overlay (Click to Seek)", fontsize=10, color='gray') # [MOD] Title hint
         
         if self.df is not None and not self.df.empty:

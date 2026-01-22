@@ -732,7 +732,7 @@ if __name__ == "__main__":
     fig.canvas.mpl_connect('scroll_event', on_scroll)
 
     # --- 3. Sensitivity Value Display ---
-    y_sens_val = 0.705 # [MOD] Positioned neatly in panel
+    y_sens_val = 0.695 # [MOD] Positioned neatly in panel
     ax_w_val = reg_ax([0.85, y_sens_val, 0.10, 0.06], main_view_axes) # [MOD] Height 0.04 -> 0.06
     ui_refs['ax_w_val'] = ax_w_val
     ax_w_val.set_xticks([]); ax_w_val.set_yticks([])
@@ -1183,7 +1183,7 @@ if __name__ == "__main__":
     ui_refs['txt_sess_len'] = txt_sess_len
 
     # --- SYSTEM CONTROLS PANEL ---
-    r_sys_bg = [0.835, 0.40, 0.13, 0.25]
+    r_sys_bg = [0.835, 0.405, 0.13, 0.25]
     ax_system_bg = reg_ax(r_sys_bg, main_view_axes)
     ax_system_bg.set_facecolor('#333333')
     ax_system_bg.set_xticks([]); ax_system_bg.set_yticks([])
@@ -1195,24 +1195,16 @@ if __name__ == "__main__":
     ui_refs['ax_system_bg'] = ax_system_bg
 
     # [FIX] Relocated Buttons (Now inside SYSTEM CONTROLS)
-    r_calib = [0.84, 0.54, 0.10, 0.04]
+    r_calib = [0.85, 0.575, 0.10, 0.04]
     ax_calib = reg_ax(r_calib, main_view_axes)
     ui_refs['btn_calib'] = Button(ax_calib, "Calibrate", color='#004488', hovercolor='#0066aa')
     ui_refs['btn_calib'].label.set_color('white') #'#eee'
     ui_refs['btn_calib'].ax.patch.set_animated(True)
     ui_refs['btn_calib'].label.set_animated(True)    
     ui_refs['btn_calib'].on_clicked(start_calibration)
-
-    # [FIX] Relocated Buttons (Now inside SYSTEM CONTROLS)
-    r_ts = [0.84, 0.11, 0.10, 0.04]
-    ax_to_set = reg_ax(r_ts, main_view_axes)
-    ui_refs['btn_to_settings'] = Button(ax_to_set, "Settings >", color='#444444', hovercolor='#666666')
-    ui_refs['btn_to_settings'].label.set_color('white') #'#eee'
-    ui_refs['btn_to_settings'].ax.patch.set_animated(True)
-    ui_refs['btn_to_settings'].label.set_animated(True)
     
     # [NEW] Manual Button Standardized
-    r_man = [0.84, 0.21, 0.10, 0.04]
+    r_man = [0.85, 0.525, 0.10, 0.04]
     ax_man = reg_ax(r_man, main_view_axes)
     ui_refs['btn_manual'] = Button(ax_man, "Manual", color='#2980b9', hovercolor='#3498db')
     ui_refs['btn_manual'].label.set_color('white')
@@ -1223,13 +1215,20 @@ if __name__ == "__main__":
     # [NEW] Viewer Button (Below Manual)
     # Manual: x=0.85, y=0.20, h=0.04
     # Viewer: x=0.85, y=0.155 (Gap 0.005), w=0.13, h=0.04
-    r_view = [0.84, 0.16, 0.10, 0.04]
+    r_view = [0.85, 0.475, 0.10, 0.04]
     ax_view = reg_ax(r_view, main_view_axes)
     ui_refs['btn_viewer'] = Button(ax_view, "Viewer", color='#552255', hovercolor='#773377')
     ui_refs['btn_viewer'].label.set_color('white')
     ui_refs['btn_viewer'].ax.patch.set_animated(True)
     ui_refs['btn_viewer'].label.set_animated(True)
 
+    # [FIX] Relocated Buttons (Now inside SYSTEM CONTROLS)
+    r_ts = [0.85, 0.425, 0.10, 0.04]
+    ax_to_set = reg_ax(r_ts, main_view_axes)
+    ui_refs['btn_to_settings'] = Button(ax_to_set, "Settings >", color='#444444', hovercolor='#666666')
+    ui_refs['btn_to_settings'].label.set_color('white') #'#eee'
+    ui_refs['btn_to_settings'].ax.patch.set_animated(True)
+    ui_refs['btn_to_settings'].label.set_animated(True)
     # VIEW LOGIC
     viewer_frame = None
     sess_viewer = None
