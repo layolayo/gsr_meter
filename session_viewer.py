@@ -211,6 +211,11 @@ class SessionViewer:
                              ha='right', va='top', rotation=45, transform=self.ax.get_yaxis_transform(), clip_on=False)
             self.txt_grid_labels.append(t)
 
+
+        # [NEW] TA Counter Display (Top Left)
+        self.txt_ta_counter = self.ax.text(0.02, 0.95, "", color='#aaaaaa', fontsize=9, fontweight='bold',
+                                           ha='left', va='top', transform=self.ax.transAxes)
+        
         # [NEW] Span Indicator (Top Right)
         self.txt_span = self.ax.text(0.98, 0.95, "", color='#aaaaaa', fontsize=9, fontweight='bold',
                                      ha='right', va='top', transform=self.ax.transAxes)
@@ -562,6 +567,16 @@ class SessionViewer:
             span_pct = (math.pow(10, eff_win) - 1.0) * 100.0
             self.txt_span.set_text(f"SPAN: {span_pct:.1f}%")
         except: pass
+
+        # [NEW] Update TA Counter (Top Left)
+        if hasattr(self, 'txt_ta_counter'):
+            try:
+                if idx_now < len(self.df) and 'TA Counter' in self.df.columns:
+                    ta_val = self.df.iloc[idx_now]['TA Counter']
+                    self.txt_ta_counter.set_text(f"TA COUNTER: {ta_val:.2f}")
+                else:
+                    self.txt_ta_counter.set_text("TA COUNTER: 0.0")
+            except: pass
         
         # [MOD] Locked fixed 62.5% centering logic (Map data to -5 to 105)
         # log_center = math.log10(max(0.01, self.smooth_c_val))

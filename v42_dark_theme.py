@@ -23,7 +23,7 @@ from modules.audio_handler import AudioHandler
 # from modules.hrv_state_analyzer import HRVStateAnalyzer
 # Pattern Rec
 from modules.gsr_patterns import GSRPatterns 
-from modules.session_viewer import SessionViewer # [NEW]
+from session_viewer import SessionViewer # [NEW]
 
 # File Naming
 CONFIG_FILE = "v42_config.json"
