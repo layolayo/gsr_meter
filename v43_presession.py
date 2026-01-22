@@ -26,7 +26,7 @@ from modules.gsr_patterns import GSRPatterns
 from modules.session_viewer import SessionViewer # [NEW]
 
 # File Naming
-CONFIG_FILE = "v42_config.json"
+CONFIG_FILE = "v43_config.json"
 
 # --- GSR SETTINGS ---
 VENDOR_ID = 0x1fc9
@@ -364,6 +364,7 @@ manual_viewer = ManualViewer(
         ("Training Drills", "manual/training_drills.md", "#27ae60"),
         ("Advanced Drills", "manual/advanced_drills.md", "#c0392b"),
         ("Assessment Lists", "manual/assessment_lists.md", "#8e44ad"),
+        ("Pre-Session Processes", "manual/pre_session.md", "#1abc9c"),
         ("Training Processes", "manual/processes.md", "#d35400"),
         ("Method One", "manual/method_one.md", "#f39c12"),
         ("Technical & Troubleshooting", "manual/technical_guide.md", "#2980b9")

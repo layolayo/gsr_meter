@@ -37,7 +37,7 @@ The "Tone Arm" (TA) represents the **Basal Skin Resistance** (BSR) of the subjec
 The system uses **Graph Units** (Relative Scale) to define patterns, ensuring consistency regardless of your current Sensitivity.
 
 *   **Graph Range**: The active vertical display represents **5.0 Units**.
-*   **Sensitivity**: As you adjust sensitivity (Window Size), the value of "1 Unit" changes in raw Ohms, but the *visual size* of a reaction stays consistent on the screen.
+*   **Zoom (Sensitivity)**: As you adjust Zoom (Arrows or Scroll), the value of "1 Unit" changes in raw Ohms, but the *visual size* of a reaction stays consistent on the screen.
 
 ## Velocity & Magnitude
 The system calculates the **Trace Velocity** in **Units per Second**.

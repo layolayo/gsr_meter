@@ -63,6 +63,11 @@ class ManualViewer:
         self.doc_text.tag_config("code", font=("Courier", 10), background="#ecf0f1")
         self.doc_text.tag_config("link", foreground="blue", underline=1, font=("Georgia", 11, "bold"))
         
+        # List Tags (Graduated Indentation)
+        self.doc_text.tag_config("li1", lmargin1=20, lmargin2=35) # Level 1
+        self.doc_text.tag_config("li2", lmargin1=50, lmargin2=65) # Level 2
+        self.doc_text.tag_config("li3", lmargin1=80, lmargin2=95) # Level 3
+        
         # Table Tags
         self.doc_text.tag_config("table", font="TkFixedFont", background="#ecf0f1", 
                                  tabs=("2c", "6c", "10c", "14c", "18c", "22c"))
@@ -271,11 +276,19 @@ class ManualViewer:
                 except Exception as e:
                     self.doc_text.insert(tk.END, f"[Image Load Failed: {e}]\n")
                  
-            # 4. List Items
+            # 4. List Items (Multi-level)
             elif stripped.startswith('* ') or stripped.startswith('- '):
-                 self.doc_text.insert(tk.END, "  • ")
-                 insert_with_tags(stripped[2:])
-                 self.doc_text.insert(tk.END, "\n") # [FIX] Add newline for list items
+                 # Calculate Indentation Level (Total spaces / 4, capped at 3)
+                 # Note: Standard MD is 2 or 4 spaces, we'll check number of leading spaces
+                 leading_spaces = len(line) - len(line.lstrip())
+                 level = 1
+                 if leading_spaces >= 6: level = 3
+                 elif leading_spaces >= 2: level = 2
+                 
+                 tag = f"li{level}"
+                 self.doc_text.insert(tk.END, "  • ", tag)
+                 insert_with_tags(stripped[2:], tag)
+                 self.doc_text.insert(tk.END, "\n")
             
             # 5. Normal Text
             else:

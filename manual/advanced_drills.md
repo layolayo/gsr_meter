@@ -99,12 +99,12 @@ These drills focus on complex meter interpretation, including finding hidden dat
 ---
 
 ## Drill 15: Cleaning a Read
-**Purpose**: To "Clean" a Dirty Needle by locating the hidden disagreement or protest causing it.
+**Purpose**: To "Clean" a Dirty Response by locating the hidden disagreement or protest causing it.
 
 **Reference**: See [Assessment Word Lists](manual/assessment_lists.md) (List 7) for controversial statements.
 
 **Theory**:
-A "Dirty Needle" (ragged, ticking, or tight) is caused by a **held disagreement** or valid protest.
+A "Dirty Response" (ragged, ticking, or tight) is caused by a **held disagreement** or valid protest.
 
 **Steps**:
 1.  **Material**: Give the subject **List 7** to read *silently*.
@@ -129,7 +129,7 @@ A "Dirty Needle" (ragged, ticking, or tight) is caused by a **held disagreement*
 2.  **Observe**:
     *   **Clean/Floating**: Good. Move to next.
     *   **Read**: Stop. Handle the distraction (e.g., "What is it?" -> "It's too cold" -> Fix AC).
-3.  **Goal**: Achieving a "Clean Needle" on all setup questions means the client is **Ready** to run the session.
+3.  **Goal**: Achieving a "Clean Response" on all setup questions means the client is **Ready** to run the session.
 
 ---
 

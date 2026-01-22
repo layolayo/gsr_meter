@@ -10,20 +10,17 @@ These practice drills are modernized versions of the original 1965 E-Meter drill
 **Commands**:
 Perform the following actions in sequence until fluid:
 
-### 1. Sensitivity
-**Locate**: Sensitivity Controls (Top Right, `+` and `-` buttons).
+### 1. Zoom (Sensitivity)
+**Locate**: Zoom Controls (Arrows `LEFT`/`RIGHT` or Scroll Wheel).
 **Action**:
-1.  **Click** `+` to increase Sensitivity (Zoom In). The graph will move faster for small changes.
-2.  **Click** `-` to decrease Sensitivity (Zoom Out). The graph will smoothen out.
-**Goal**: Understand that Sensitivity changes the *scale* of the graph, not the data itself.
+1.  **Press** `RIGHT` to increase Zoom (Zoom In). The graph will move faster for small changes.
+2.  **Press** `LEFT` to decrease Zoom (Zoom Out). The graph will smoothen out.
+**Goal**: Understand that Zoom changes the *scale* of the graph, not the data itself.
 
-### 2. Auto-Boost
-**Locate**: Booster Buttons (`OFF`, `L`, `M`, `H`).
+### 2. Manual Navigation
 **Action**:
-1.  **Click** `L` (Low Boost). Observe the green indicator.
-2.  **Click** `H` (High Boost).
-3.  **Click** `OFF`.
-**Goal**: To enable automatic magnification of small reads during a session.
+1.  **Press** `UP` or `DOWN` arrows to fine-tune the trace position.
+**Goal**: To practice manual control of the graph center.
 
 ### 3. Calibrate
 **Locate**: The blue "Calibrate" button.
@@ -32,11 +29,11 @@ Perform the following actions in sequence until fluid:
 2.  Follow the on-screen prompts (Squeeze, Relax, Breathe).
 **Goal**: To normalize the sensor to your current skin resistance baseline.
 
-### 4. TA SET
-**Locate**: The "SET" button (Center) or the "TA SET" reading.
+### 4. Center Trace
+**Locate**: The "Spacebar" or central "SET" area.
 **Action**:
 1.  Wait for the graph line to drift near the top or bottom.
-2.  **Click** "SET".
+2.  **Press** `Spacebar`.
 **Result**: The graph line instantly re-centers to the middle of the screen.
 
 ### 5. TA COUNTER
@@ -98,7 +95,7 @@ Perform the following actions in sequence until fluid:
 1.  **Command**: Student says *"Squeeze the cans."*
 2.  **Action**:
     *   Student reaches over and gives the Coach a sharp **Pinch** on the arm (or Coach simulates sudden pain).
-    *   Coach stays silent but reacts physically to the pinch.
+    *   Coach reacts physically to the pinch.
 3.  **Observe**:
     *   The graph should **Fall** (Drop) instantly at the moment of the pinch.
 4.  **Goal**: To realize that the graph is connected to the person's reality. A stimulus *here* causes a reaction *there*.
@@ -114,7 +111,7 @@ In the analog days, the "Tone Arm" had to be moved constantly to keep the needle
 
 **Steps**:
 1.  **Observe** the graph drifting towards the top or bottom edge.
-2.  **Practice** manually clicking the **SET** button (or tapping `Spacebar`) to bring the line back to the middle.
+2.  **Practice** tapping the `Spacebar` to bring the line back to the middle.
 3.  **Goal**: Maintain a continuous view of the trace without letting it hit the "roof" or "floor".
 
 ---

@@ -24,6 +24,8 @@ The first three steps measure your **Active Response Range** using a "Squeeze" m
 
 This is repeated 3 times to get a reliable median value of your drop magnitude. This median is then used to set the **Base Sensitivity** of the graph.
 
+> **Technical Note**: Once Step 3 is complete, the system automatically calculates and sets the initial **SPAN**. This ensures the graph is perfectly scaled to your specific responsiveness before you begin the deep breath test.
+
 ### Step 4: The Deep Breath Test
 The final step measures your **Autonomic Response** (Rest & Digest).
 
@@ -31,7 +33,7 @@ The final step measures your **Autonomic Response** (Rest & Digest).
 2.  **Detection**: The system waits for a drop triggered by the diaphragm movement and relaxation.
 3.  **Stabilization**: Instead of a quick release, the system waits for the reading to **Stabilize** (flatline) for 1.5 seconds.
 
-This ensures that the "Sensitivity Knob" of our virtual GSR-Meter is set perfectly for your current session, neither too loose (random noise) nor too stiff (missing reads).
+This ensures that the **Zoom Range** of our virtual GSR-Meter is set perfectly for your current session, neither too loose (random noise) nor too stiff (missing reads).
 
 ## Graph Patterns
 

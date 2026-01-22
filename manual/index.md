@@ -35,9 +35,12 @@ Welcome to the digital training manual. This guide takes you from the basics of 
 *   [Standard Processes](manual/processes.md): Moving from drills to therapy.
     *   ARC Straightwire: The first formal process.
     *   Rudiments: Getting the client ready.
-*   [Integrity Processing](manual/processes.md): Handling withholds and dirty needles.
+*   [Pre-Session Processes](manual/pre_session.md): Getting grounded and ready.
+    *   Havingness: Expanding ownership.
+    *   Confront: Facing the environment.
+*   [Integrity Processing](manual/processes.md): Handling withholds and dirty responses.
     *   Security Checks: finding the overt.
-    *   Cleaning Reads: The procedure to get a clean needle.
+    *   Cleaning Reads: The procedure to get a clean response.
 *   [Method One: Word Clearing](manual/method_one.md): Handling the barrier to study.
     *   "Do Birds Fly?": Command clearing drill.
     *   Assessment: Clearing a subject.

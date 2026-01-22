@@ -66,6 +66,9 @@ class SessionViewer:
         
         # Build UI
         self.setup_gui()
+        
+        # [NEW] Keyboard Shortcuts
+        self.setup_shortcuts()
 
     def setup_gui(self):
         toolbar = tk.Frame(self.master, height=40, bg='#444444') # [MOD] Lighter gray for separation
@@ -147,12 +150,15 @@ class SessionViewer:
         self.fig.subplots_adjust(left=0.1, right=0.95, top=0.99, bottom=0.05)
         
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.graph_frame)
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.canvas_widget = self.canvas.get_tk_widget()
+        self.canvas_widget.config(highlightthickness=0, borderwidth=0)
+        self.canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         # self.graph_frame.bind("<Configure>", self.on_resize) # [MOD] Replying on master resize instead
 
         # [NEW] Timer (Directly in graph_frame for tightest packing)
         # Using #222 background to look transparent against the gray panel
-        self.lbl_time = tk.Label(self.graph_frame, text="00:00 / 00:00", bg='#222', fg='cyan', font=('Courier', 16, 'bold'))
+        self.lbl_time = tk.Label(self.graph_frame, text="00:00 / 00:00", bg='#222', fg='cyan', font=('Courier', 16, 'bold'),
+                                 borderwidth=0, highlightthickness=0)
         self.lbl_time.pack(side=tk.BOTTOM, pady=(0, 2)) # [MOD] Minimal padding to bring closer to minimap
 
         # [NEW] Navigation Buttons Frame
@@ -187,6 +193,16 @@ class SessionViewer:
         self.canvas.mpl_connect('button_press_event', self.on_plot_click)
 
         self.init_plot()
+
+    def setup_shortcuts(self):
+        # [NEW] Bind keyboard events to the master frame
+        # Ensure it can receive focus
+        self.master.config(takefocus=True)
+        self.master.bind_all("<space>", lambda e: self.toggle_play())
+        self.master.bind_all("<Left>", lambda e: self.seek_backward())
+        self.master.bind_all("<Right>", lambda e: self.seek_forward())
+        self.master.bind_all("<Shift-Left>", lambda e: self.seek_to_pattern(-1))
+        self.master.bind_all("<Shift-Right>", lambda e: self.seek_to_pattern(1))
 
     def request_close(self):
         """Standard cleanup for component shutdown"""
@@ -298,13 +314,15 @@ class SessionViewer:
         self.ax_mini.tick_params(axis='y', colors='lightgray', labelsize=8)
         self.ax_mini.set_title("Full Session Overlay (Click to Seek)", fontsize=10, color='gray') 
         
-        # [NEW] Absolute Time Formatting for Minimap (mm:ss)
-        from matplotlib.ticker import FuncFormatter
+        # [NEW] Absolute Time Formatting for Minimap (mm:ss) with Doubled Ticks
+        from matplotlib.ticker import FuncFormatter, MaxNLocator
         def time_formatter(x, pos):
             mins = int(x) // 60
             secs = int(x) % 60
             return f"{mins:02}:{secs:02}"
+        
         self.ax_mini.xaxis.set_major_formatter(FuncFormatter(time_formatter))
+        self.ax_mini.xaxis.set_major_locator(MaxNLocator(nbins=14)) # [NEW] Double standard tick density
         
         
         if self.df is not None and not self.df.empty:
