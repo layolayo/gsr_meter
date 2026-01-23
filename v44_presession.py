@@ -30,7 +30,7 @@ CONFIG_FILE = "v44_config.json"
 
 # --- GSR SETTINGS ---
 VENDOR_ID = 0x1fc9
-PRODUCT_ID = 0x000343_
+PRODUCT_ID = 0x0003
 V_SOURCE = 6.371
 R_REF = 83.0
 
@@ -179,113 +179,108 @@ class GSRReader(threading.Thread):
         self.current_ta = 0.0
         self.connected = False
         self.samples_to_process = 0.0 
-        self.last_flush_time = 0 
+        self.last_flush_time = 0  
 
 
     def run(self):
-        try:
-            global latest_gsr_ta, current_calm_score
-            h = hid.device()
-            h.open(VENDOR_ID, PRODUCT_ID)
-            h.set_nonblocking(1) 
-            self.connected = True
-            print("[GSR] Connected (High Speed Mode)")
-
-            while self.running:
-                try:
-                    data = None
-                    while True:
-                        try:
-                            d = h.read(64)
-                            if d: data = d
-                            else: break
-                        except Exception: break
-                    
-                    if not data:
-                        time.sleep(0.005) 
-                        continue
-                    
-                    if len(data) >= 4 and data[0] == 0x01:
-                        self.connected = True
-                        raw_val = (data[2] << 8) | data[3]
-                        voltage = raw_val / 10000.0
-                        
-                        if voltage >= (V_SOURCE - 0.005):
-                            ohms = 999999.9
-                        else:
-                            try:
-                                ohms = (voltage * R_REF) / (V_SOURCE - voltage)
-                            except Exception:
-                                ohms = 999999.9
-                        try:
-                            ta = (ohms * 1000 / (ohms * 1000 + 21250)) * 5.559 + 0.941
-                        except Exception:
-                            ta = 0.0
-                        self.current_ta = ta
-                        
-                    global latest_gsr_ta
-                    latest_gsr_ta = self.current_ta
-                    
-                    # Log Here to capture every sample (60Hz)
-
-                    if is_recording:
-                         try:
-                             ts_now = datetime.now().strftime('%H:%M:%S.%f')
-                             
-                             # Log GSR
-                             if writer_gsr:
-                                  win = get_effective_window()
-                                  global CALIB_PIVOT_TA, active_event_label, motion_lock_expiry, current_pattern, ta_accum, recording_start_time_obj
-                                  note = active_event_label
-                                  if note: active_event_label = ""
-                                  
-                                  is_motion = 1 if time.time() < motion_lock_expiry else 0
-                                  # Calc Elapsed
-                                  elapsed_str = "00:00:00.00000"
-                                  if recording_start_time_obj:
-                                       elapsed_val = (datetime.now() - recording_start_time_obj).total_seconds()
-                                       elapsed_str = format_elapsed(elapsed_val)
-                                  
-                                  # Grab Global Delta TA (Calculated in Main Thread)
-                                  # Note: Might be slightly delayed 60Hz vs 60Hz but adequate.
-                                  #d_ta_log = latest_d_ta if 'latest_d_ta' in globals() else 0.0
-                                       
-                                  log_ta = math.log10(max(0.01, self.current_ta))
-                                  writer_gsr.writerow([ts_now, elapsed_str, f"{self.current_ta:.5f}", f"{ta_accum:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{log_ta:.5f}"])
-                             
-                         except Exception: pass
-
-                    # Periodic Flush to prevent IO Stalls (Every 1.0s)
-                    if is_recording and (time.time() - self.last_flush_time) > 1.0:
-                        try:
-                            if f_gsr: f_gsr.flush()
-                            self.last_flush_time = time.time()
-                        except Exception: pass
-
-                    # GRAPH HISTORY UPDATE (Master Clock = 60Hz)
-                    try:
-                         # 1. GSR Value
-                         # Store RAW TA for dynamic scaling in main loop
-                         bands_history['GSR'].append(self.current_ta)
-
-                         
-                    except Exception: pass
-                
-                except Exception as loop_e:
-                    print(f"[GSR] Loop Skip: {loop_e}")
-                    time.sleep(0.005)
- 
-                time.sleep(0.0166) # ~60Hz Pacing 
- 
-
-        except Exception as e:
-            print(f"[GSR] FATAL Error: {e}") 
-            self.connected = False
-        finally:
-            print("[GSR] Closing HID Device...")
+        while self.running:
             try:
-                if 'h' in locals(): h.close()
-            except: pass
+                global latest_gsr_ta, current_calm_score
+                h = hid.device()
+                h.open(VENDOR_ID, PRODUCT_ID)
+                h.set_nonblocking(1) 
+                self.connected = True
+                print("[GSR] Connected (High Speed Mode)")
+
+                while self.running and self.connected:
+                    try:
+                        data = None
+                        while True: # Clear buffer loop
+                            try:
+                                d = h.read(64)
+                                if d: data = d
+                                else: break
+                            except Exception: break
+                        
+                        if not data:
+                            time.sleep(0.005) 
+                            continue
+                        
+                        if len(data) >= 4 and data[0] == 0x01:
+                            raw_val = (data[2] << 8) | data[3]
+                            voltage = raw_val / 10000.0
+                            
+                            if voltage >= (V_SOURCE - 0.005):
+                                ohms = 999999.9
+                            else:
+                                try:
+                                    ohms = (voltage * R_REF) / (V_SOURCE - voltage)
+                                except Exception:
+                                    ohms = 999999.9
+                            try:
+                                ta = (ohms * 1000 / (ohms * 1000 + 21250)) * 5.559 + 0.941
+                            except Exception:
+                                ta = 0.0
+                            self.current_ta = ta
+                            
+                        global latest_gsr_ta
+                        latest_gsr_ta = self.current_ta
+                        
+                        # Log Here to capture every sample (60Hz)
+                        if is_recording:
+                             try:
+                                 ts_now = datetime.now().strftime('%H:%M:%S.%f')
+                                 
+                                 # Log GSR
+                                 if writer_gsr:
+                                      win = get_effective_window()
+                                      global CALIB_PIVOT_TA, active_event_label, motion_lock_expiry, current_pattern, ta_accum, recording_start_time_obj
+                                      note = active_event_label
+                                      if note: active_event_label = ""
+                                      
+                                      is_motion = 1 if time.time() < motion_lock_expiry else 0
+                                      # Calc Elapsed
+                                      elapsed_str = "00:00:00.00000"
+                                      if recording_start_time_obj:
+                                           elapsed_val = (datetime.now() - recording_start_time_obj).total_seconds()
+                                           elapsed_str = format_elapsed(elapsed_val)
+                                           
+                                      log_ta = math.log10(max(0.01, self.current_ta))
+                                      writer_gsr.writerow([ts_now, elapsed_str, f"{self.current_ta:.5f}", f"{ta_accum:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{log_ta:.5f}"])
+                                 
+                             except Exception: pass
+
+                        # Periodic Flush to prevent IO Stalls (Every 1.0s)
+                        if is_recording and (time.time() - self.last_flush_time) > 1.0:
+                            try:
+                                if f_gsr: f_gsr.flush()
+                                self.last_flush_time = time.time()
+                            except Exception: pass
+
+                        # GRAPH HISTORY UPDATE (Master Clock = 60Hz)
+                        try:
+                             # 1. GSR Value
+                             # Store RAW TA for dynamic scaling in main loop
+                             bands_history['GSR'].append(self.current_ta)
+                        except Exception: pass
+                        
+                        time.sleep(0.0166) # ~60Hz Pacing 
+
+                    except Exception as loop_e:
+                        print(f"[GSR] Loop Skip/Disconnect: {loop_e}")
+                        self.connected = False
+                        break # Break inner loop to trigger reconnect
+            
+            except Exception as e:
+                if self.connected: # Only log if we were previously connected or it's a new attempt
+                     print(f"[GSR] Connection Error: {e} - Retrying in 1s...")
+                self.connected = False
+                time.sleep(1.0)
+            
+            finally:
+                try:
+                    if 'h' in locals(): h.close()
+                except: pass
 
     def stop(self):
         self.running = False
@@ -542,7 +537,7 @@ if __name__ == "__main__":
         mngr = plt.get_current_fig_manager()
         # TkAgg/Linux
         try: 
-            mngr.window.attributes('-zoomed', True)
+            mngr.window.attributes('-fullscreen', True)
             mngr.window.update() # [NEW] Force Tkinter update
         except: 
              try: 
@@ -2398,7 +2393,23 @@ if __name__ == "__main__":
         # print("Resize: Backgrounds Cleared.")
 
     fig.canvas.mpl_connect('resize_event', on_resize)
+    fig.canvas.mpl_connect('resize_event', on_resize)
     fig.canvas.mpl_connect('close_event', on_close)
+    
+    # [NEW] Keyboard Event Handler for Fullscreen Control
+    def on_key(event):
+        try:
+            if event.key == 'escape':
+                print("[System] Escape key pressed. Exiting...")
+                # Try to exit gracefully
+                on_close(None)
+                # If on_close() doesn't kill it immediately (it sets flags), we can ensure cleanup
+                # But let's let the main loop catch the flag if possible, or force it.
+                global app_running
+                app_running = False  
+        except Exception: pass
+
+    fig.canvas.mpl_connect('key_press_event', on_key)
 
     # [FIX] Flush Last Log to UI
     if log_messages:
@@ -2531,12 +2542,16 @@ if __name__ == "__main__":
              
              # [NEW] One-shot Fullscreen/Maximize
              global first_run_zoomed
+             global first_run_zoomed
              if 'first_run_zoomed' not in globals():
                  first_run_zoomed = True
                  try:
                      mngr = plt.get_current_fig_manager()
-                     try: mngr.window.attributes('-zoomed', True)
-                     except: mngr.window.state('zoomed')
+                     try: 
+                         # True Fullscreen Mode
+                         mngr.window.attributes('-fullscreen', True)
+                     except: 
+                         mngr.window.state('zoomed') # Windows fallback
                  except: pass
              try:
                  original_update(frame)
