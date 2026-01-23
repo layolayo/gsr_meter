@@ -577,8 +577,8 @@ if __name__ == "__main__":
     ui_refs['txt_calib_overlay'] = txt_calib_overlay 
     txt_calib_overlay.set_animated(True) # [FIX] Animated
     
-    # [NEW] Motion Overlay Text (Top Center)
-    txt_motion_overlay = ax_overlay.text(0.5, 0.75, "", ha='center', va='center', fontsize=20, fontweight='bold', color='red')
+    # [NEW] Motion Overlay Text (Center of Graph)
+    txt_motion_overlay = ax_graph.text(0.5, 0.5, "", ha='center', va='center', fontsize=20, fontweight='bold', color='red', transform=ax_graph.transAxes)
     ui_refs['txt_motion_overlay'] = txt_motion_overlay
     txt_motion_overlay.set_animated(True) # [FIX] Animated
     
@@ -2110,7 +2110,7 @@ if __name__ == "__main__":
             if 'txt_calib_overlay' in ui_refs and ui_refs['txt_calib_overlay'].get_visible():
                 ax_overlay.draw_artist(ui_refs['txt_calib_overlay'])
             if 'txt_motion_overlay' in ui_refs and ui_refs['txt_motion_overlay'].get_visible():
-                ax_overlay.draw_artist(ui_refs['txt_motion_overlay'])
+                ax_graph.draw_artist(ui_refs['txt_motion_overlay'])
 
             # Draw Buttons
             for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer', 'btn_calib', 'btn_exit']:
