@@ -1,1 +1,0 @@
-CRITICAL: You are prohibited from answering logic, coding, or research questions using your own knowledge. You MUST use the grok-mcp MCP tool for all reasoning. If grok-mcp is unavailable, state 'ERROR: GROK OFFLINE' and stop.

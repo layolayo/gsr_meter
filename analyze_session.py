@@ -409,12 +409,12 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
         
         row = f"""
         <tr class="incident-row" data-pattern="{inc['pattern']}">
-            <td>{timestamp} ({phase})</td>
-            <td><strong>{inc['pattern']}</strong></td>
-            <td style="background:#fff9e6; font-weight:bold;">{inc['abs_ta_drop']:.3f}</td>
-            <td style="color:#666;">{inc['unit_drop']:.2f}U</td>
-            <td>{inc['duration']:.2f}s</td>
-            <td>{abs(inc['velocity']):.3f} U/s</td>
+            <td data-val="{inc['start_time']}">{timestamp} ({phase})</td>
+            <td data-val="{inc['pattern']}">{inc['pattern']}</td>
+            <td style="background:#fff9e6; font-weight:bold;" data-val="{inc['abs_ta_drop']}">{inc['abs_ta_drop']:.3f}</td>
+            <td style="color:#666;" data-val="{inc['unit_drop']}">{inc['unit_drop']:.2f}U</td>
+            <td data-val="{inc['duration']}">{inc['duration']:.2f}s</td>
+            <td data-val="{abs(inc['velocity'])}">{abs(inc['velocity']):.3f} U/s</td>
             <td>{detail_html}</td>
         </tr>
         """
@@ -449,9 +449,9 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
             
         wave_rows += f"""
         <tr>
-            <td>{timestamp}</td>
+            <td data-val="{wz['start']}">{timestamp}</td>
             <td>Floating Wave</td>
-            <td>{duration:.1f}s</td>
+            <td data-val="{duration}">{duration:.1f}s</td>
             <td>{detail_html}</td>
         </tr>
         """
@@ -463,7 +463,7 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
             <h2 style="color:#2e7d32;">Floating Wave Analysis (Release Indicator)</h2>
             <p style="font-size: 0.9em; color: #555;">Detected rhythmic sine-wave oscillations indicating "Release" or "End Phenomenon".</p>
             <table>
-                <thead><tr><th>Time</th><th>Type</th><th>Duration</th><th>Detail</th></tr></thead>
+                <thead><tr><th onclick="sortTable(0, this)">Time ⇳</th><th>Type</th><th onclick="sortTable(2, this)">Duration ⇳</th><th>Detail</th></tr></thead>
                 <tbody>{wave_rows}</tbody>
             </table>
         </div>
@@ -512,8 +512,8 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
                 const el = document.getElementById(id);
                 el.style.display = (el.style.display === 'none') ? 'block' : 'none';
             }}
-            function sortTable(n) {{
-                let table = document.querySelector("table");
+            function sortTable(n, header) {{
+                let table = header.closest("table");
                 let rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
                 switching = true;
                 dir = "asc";
@@ -524,18 +524,17 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
                         shouldSwitch = false;
                         x = rows[i].getElementsByTagName("TD")[n];
                         y = rows[i + 1].getElementsByTagName("TD")[n];
-                        let xVal = x.innerText.toLowerCase();
-                        let yVal = y.innerText.toLowerCase();
-                        // Try numeric parse for sorting
-                        let xNum = parseFloat(xVal.replace(/[^0-9.-]/g, ""));
-                        let yNum = parseFloat(yVal.replace(/[^0-9.-]/g, ""));
                         
-                        if (!isNaN(xNum) && !isNaN(yNum)) {{
-                            if (dir == "asc") {{ if (xNum > yNum) {{ shouldSwitch = true; break; }} }}
-                            else if (dir == "desc") {{ if (xNum < yNum) {{ shouldSwitch = true; break; }} }}
+                        // Use data-val if available, otherwise innerText
+                        let xVal = x.dataset.val ? parseFloat(x.dataset.val) : x.innerText.toLowerCase();
+                        let yVal = y.dataset.val ? parseFloat(y.dataset.val) : y.innerText.toLowerCase();
+                        
+                        if (typeof xVal === 'string') {{
+                             if (dir == "asc") {{ if (xVal > yVal) {{ shouldSwitch = true; break; }} }}
+                             else if (dir == "desc") {{ if (xVal < yVal) {{ shouldSwitch = true; break; }} }}
                         }} else {{
-                            if (dir == "asc") {{ if (xVal > yVal) {{ shouldSwitch = true; break; }} }}
-                            else if (dir == "desc") {{ if (xVal < yVal) {{ shouldSwitch = true; break; }} }}
+                             if (dir == "asc") {{ if (xVal > yVal) {{ shouldSwitch = true; break; }} }}
+                             else if (dir == "desc") {{ if (xVal < yVal) {{ shouldSwitch = true; break; }} }}
                         }}
                     }}
                     if (shouldSwitch) {{
@@ -577,12 +576,12 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
             </div>
             <table>
                 <thead><tr>
-                    <th onclick="sortTable(0)">Time (Phase) ⇳</th>
-                    <th onclick="sortTable(1)">Type ⇳</th>
-                    <th onclick="sortTable(2)">TA Change (Abs) ⇳</th>
-                    <th onclick="sortTable(3)">Est. Units ⇳</th>
-                    <th onclick="sortTable(4)">Duration ⇳</th>
-                    <th onclick="sortTable(5)">Velocity ⇳</th>
+                    <th onclick="sortTable(0, this)">Time (Phase) ⇳</th>
+                    <th onclick="sortTable(1, this)">Type ⇳</th>
+                    <th onclick="sortTable(2, this)">TA Change (Abs) ⇳</th>
+                    <th onclick="sortTable(3, this)">Est. Units ⇳</th>
+                    <th onclick="sortTable(4, this)">Duration ⇳</th>
+                    <th onclick="sortTable(5, this)">Velocity ⇳</th>
                     <th>Detail</th>
                 </tr></thead>
                 <tbody>{incident_rows if incident_rows else '<tr><td colspan="7">No major incidents (LONG FALL, BLOWDOWN, LONG RISE, ROCKET READ) detected.</td></tr>'}</tbody>
@@ -601,7 +600,6 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
         with open(path, "w") as f: f.write(html_content)
     
     print(f"Refined Report generated at: {session_path}")
-    webbrowser.open(f"file://{session_path}")
 
 def plot_session(df, session_path):
     """Generates the high-detail GSR analysis plot with refined annotations."""
