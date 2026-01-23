@@ -74,40 +74,13 @@ def load_data(session_path):
         return None
 
 def analyze_incidents(df):
-    """
-    Refined Incident Isolation using Peak-to-Trough/Trough-to-Peak measurement.
-    Groups noisy real-time patterns and re-calculates actual drop/rise in "Graph Units".
-    Also detects "Dirty Trace" zones and "Latency" between notes/incidents.
-    """
+
     if 'Pattern' not in df.columns:
         return [], [], []
 
     # 1. Smooth TA for extrema detection
     df['TA_Smooth'] = df['TA'].rolling(window=3, center=True).mean().fillna(df['TA'])
-    
-    # 2. Dirty Trace Detector (Rolling Standard Deviation)
-    # 2 seconds approx (assuming 10Hz/20Hz) - std over 20-40 samples
-    window_sz = 20
-    df['TA_Std'] = df['TA'].rolling(window=window_sz).std()
-    # "Dirty" threshold: std > 0.002 TA (arbitrary but based on 'ragged' visual)
-    df['Is_Dirty'] = df['TA_Std'] > 0.002
-    
-    dirty_zones = []
-    # Simple grouping for dirty zones
-    current_dirty = None
-    for i, row in df.iterrows():
-        if row['Is_Dirty']:
-            if current_dirty is None:
-                current_dirty = {'start': row['Seconds'], 'end': row['Seconds']}
-            else:
-                current_dirty['end'] = row['Seconds']
-        else:
-            if current_dirty:
-                if current_dirty['end'] - current_dirty['start'] > 1.0: # Min 1sec to count
-                    dirty_zones.append(current_dirty)
-                current_dirty = None
-    if current_dirty: dirty_zones.append(current_dirty)
-    
+     
     incidents = []
     current_group_indices = []
     current_direction = None # "DOWN" or "UP"
@@ -147,30 +120,6 @@ def analyze_incidents(df):
     significant = ["BLOWDOWN", "LONG FALL", "LONG RISE", "ROCKET READ"]
     incidents = [i for i in incidents if i['pattern'] in significant]
         
-    # 3. Latency Tracking (Note -> Incident)
-    latency_records = []
-    if 'Notes' in df.columns:
-        notes = df[df['Notes'].notna() & (df['Notes'].str.strip() != "")]
-        for _, n_row in notes.iterrows():
-            note_text = n_row['Notes']
-            note_time = n_row['Seconds']
-            
-            # Skip technical markers
-            if any(tech in note_text for tech in ["CALIB", "SESSION_STARTED", "ZOOM"]): continue
-            
-            # Find next significant incident after this note
-            next_inc = next((i for i in incidents if i['start_time'] > note_time), None)
-            if next_inc:
-                latency = next_inc['start_time'] - note_time
-                if latency < 10.0: # Only count if within 10s (logical reaction)
-                    latency_records.append({
-                        'note': note_text,
-                        'note_time': note_time,
-                        'incident_pattern': next_inc['pattern'],
-                        'latency': latency,
-                        'incident_idx': incidents.index(next_inc)
-                    })
-
     # 4. Floating Wave Detector (Rhythmic Oscillations)
     # High-pass filter (simple detrend)
     df['TA_Detrend'] = df['TA'] - df['TA'].rolling(window=30).mean()
@@ -205,7 +154,7 @@ def analyze_incidents(df):
                 current_wave = None
     if current_wave: wave_zones.append(current_wave)
 
-    return incidents, dirty_zones, latency_records, wave_zones
+    return incidents, wave_zones
 
 def refined_incident_record(df, indices, direction):
     """
@@ -326,33 +275,6 @@ def generate_detail_plot(df, inc):
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
-def generate_dirty_plot(df, dz):
-    """Generates a detail plot for a Dirty Trace (agitation/resistance) zone."""
-    start_time = max(0, dz['start'] - 2)
-    end_time = min(df['Seconds'].max(), dz['end'] + 2)
-    
-    mask = (df['Seconds'] >= start_time) & (df['Seconds'] <= end_time)
-    detail_df = df[mask]
-    
-    if detail_df.empty: return None
-
-    fig, ax = plt.subplots(figsize=(8, 4), dpi=80)
-    ax.plot(detail_df['Seconds'], detail_df['TA'], color='#004488', linewidth=1.2, label='TA')
-    
-    # Highlight the dirty agitation zone
-    ax.axvspan(dz['start'], dz['end'], color='#ff00ff', alpha=0.1)
-    
-    # Add a visual indicator of the standard deviation (noise) if possible
-    ax.set_title(f"Dirty Trace Detail (Agitation/Resistance)")
-    ax.set_xlabel("Seconds")
-    ax.set_ylabel("TA")
-    ax.grid(True, linestyle=':', alpha=0.6)
-    
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode('utf-8')
-
 def generate_wave_plot(df, wz):
     """Generates a detail plot for a Floating Wave (High-resolution detrended view)."""
     start_time = max(0, wz['start'] - 2)
@@ -386,7 +308,7 @@ def generate_wave_plot(df, wz):
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
-def generate_html_report(df, incidents, calib_time, session_path, latency_records, wave_zones, dirty_zones):
+def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
     """Generates a comprehensive HTML report with refined incidents."""
     
     # 1. Prepare Plot
@@ -457,56 +379,6 @@ def generate_html_report(df, incidents, calib_time, session_path, latency_record
                     {"".join([format_highlight(inc, incidents.index(inc)) for inc in significant_rises]) if significant_rises else "None detected."}
                 </div>
             </div>
-        </div>
-        """
-    
-    # NEW: Latency Table
-    latency_html = ""
-    if latency_records:
-        rows = "".join([f"<tr><td>{r['note']}</td><td>{r['incident_pattern']}</td><td>{r['latency']:.2f}s</td></tr>" for r in latency_records])
-        latency_html = f"""
-        <div class="section">
-            <h2>Reaction Audit (Note to Response Latency)</h2>
-            <p style="font-size: 0.9em; color: #555;">Measures the "Reaction Time" between a typed note/question and the resulting conductance drop.</p>
-            <table>
-                <thead><tr><th>Note/Question</th><th>Response Type</th><th>Latency</th></tr></thead>
-                <tbody>{rows}</tbody>
-            </table>
-        </div>
-        </div>
-        """
-
-    # NEW: Dirty Trace Table
-    dirty_html = ""
-    if dirty_zones:
-        d_rows = ""
-        for idx, dz in enumerate(dirty_zones):
-            mins, secs = int(dz['start']) // 60, int(dz['start']) % 60
-            timestamp = f"{mins:02}:{secs:02}"
-            duration = dz['end'] - dz['start']
-            detail_id = f"dirty_{idx}"
-            dirty_img = generate_dirty_plot(df, dz)
-            
-            d_btn = ""
-            if dirty_img:
-                d_btn = f"""
-                <button class="btn-detail" style="background:#c2185b;" onclick="toggleDetail('{detail_id}')">View Agitation</button>
-                <div id="{detail_id}" class="detail-view" style="display:none; border-color:#c2185b;">
-                    <img src="data:image/png;base64,{dirty_img}" style="max-width:600px;">
-                    <p style="font-size: 0.8em; color: #c2185b;">Dirty Trace: Agitated Signal ({duration:.1f}s duration). Indicates possible struggle/resistance.</p>
-                </div>
-                """
-            
-            d_rows += f"<tr><td>{timestamp}</td><td>Dirty Trace</td><td>{duration:.1f}s</td><td>{d_btn}</td></tr>"
-
-        dirty_html = f"""
-        <div class="section">
-            <h2 style="color:#c2185b;">Dirty Trace Audit (Resistance/Struggle)</h2>
-            <p style="font-size: 0.9em; color: #555;">Periods of high signal agitation (increased standard deviation). Clinically indicates "Resistance" or withholding.</p>
-            <table>
-                <thead><tr><th>Time</th><th>Type</th><th>Duration</th><th>Detail</th></tr></thead>
-                <tbody>{d_rows}</tbody>
-            </table>
         </div>
         """
 
@@ -692,8 +564,6 @@ def generate_html_report(df, incidents, calib_time, session_path, latency_record
             </div>
         </div>
         {highlights_html}
-        {latency_html}
-        {dirty_html}
         {waves_section}
         <div class="section"><h2>GSR Peak-to-Trough Analysis Graph</h2><img src="data:image/png;base64,{img_b64}"></div>
         <div class="section">
@@ -726,12 +596,12 @@ def generate_html_report(df, incidents, calib_time, session_path, latency_record
     </html>
     """
     
-    report_path = os.path.abspath("session_report.html")
-    for path in [os.path.join(session_path, "session_report.html"), report_path]:
+    #report_path = os.path.abspath("session_report.html")
+    for path in [os.path.join(session_path, "session_report.html")]:
         with open(path, "w") as f: f.write(html_content)
     
-    print(f"Refined Report generated at: {report_path}")
-    webbrowser.open(f"file://{report_path}")
+    print(f"Refined Report generated at: {session_path}")
+    webbrowser.open(f"file://{session_path}")
 
 def plot_session(df, session_path):
     """Generates the high-detail GSR analysis plot with refined annotations."""
@@ -747,15 +617,11 @@ def plot_session(df, session_path):
             if not calib_pts.empty: calib_time = calib_pts['Seconds'].iloc[0]
             
     # Professional Analytics
-    incidents, dirty_zones, latency_records, wave_zones = analyze_incidents(df)
+    incidents, wave_zones = analyze_incidents(df)
 
     fig, ax = plt.subplots(figsize=(16, 9), dpi=120)
     ax.plot(df['Seconds'], df['TA'], color='#004488', linewidth=0.7, alpha=0.9)
-    
-    # Mark Dirty Trace Zones (Resistance)
-    for dz in dirty_zones:
-        ax.axvspan(dz['start'], dz['end'], color='#ff00ff', alpha=0.08)
-    
+     
     # Mark Floating Waves (Release Phenomena)
     for wz in wave_zones:
         ax.axvspan(wz['start'], wz['end'], color='#00ff00', alpha=0.1, label='Floating Wave' if wz == wave_zones[0] else "")
@@ -779,9 +645,9 @@ def plot_session(df, session_path):
         ax.text(inc['start_time'], inc['val_start'], label, color=color, fontsize=8, rotation=45, fontweight='bold')
 
     plt.savefig(os.path.join(session_path, "analysis_result.png"))
-    plt.savefig("latest_analysis.png")
+    #plt.savefig("latest_analysis.png")
     plt.close(fig)
-    generate_html_report(df, incidents, calib_time, session_path, latency_records, wave_zones, dirty_zones)
+    generate_html_report(df, incidents, calib_time, session_path, wave_zones)
 
 if __name__ == "__main__":
     selected_dir = select_session()
