@@ -26,11 +26,11 @@ from modules.gsr_patterns import GSRPatterns
 from modules.session_viewer import SessionViewer # [NEW]
 
 # File Naming
-CONFIG_FILE = "v43_config.json"
+CONFIG_FILE = "v44_config.json"
 
 # --- GSR SETTINGS ---
 VENDOR_ID = 0x1fc9
-PRODUCT_ID = 0x0003
+PRODUCT_ID = 0x000343_
 V_SOURCE = 6.371
 R_REF = 83.0
 
@@ -53,6 +53,9 @@ bg_count  = None
 bg_detail = None
 bg_status = None
 bg_sens   = None
+# [NEW] Process Integration
+from process_runner import ProcessRunner
+
 bg_info = None # [FIX] Background for System Line
 first_run_center = False # [FIX] Init Auto-Center flag
 # bg_grid = None # [NEW] Bio-Grid BG
@@ -92,6 +95,19 @@ ignore_ui_callbacks = False
 headset_on_head = False
 # dead globals removed
 pattern_hold_until = 0.0
+
+# [NEW] Process State Globals
+process_runner = None
+active_process_name = None
+active_process_data = None
+process_step_idx = -1
+process_waiting_for_calib = False
+process_waiting_for_input = False
+process_ending_phase = False
+
+# [NEW] User Management Globals
+current_user_name = "Guest"
+USERS_FILE = "users.json"
 
 
 def format_elapsed(total_seconds):
@@ -148,9 +164,10 @@ audio_filename = None
 
 ZOOM_POSITIONS = [
     0.5, 0.6, 0.7, 0.8, 0.9,
-    1.0,
+    1.0, 
     1.2, 1.4, 1.6, 1.8, 2.0,
 ]
+
 # ==========================================
 #           GSR READER 
 # ==========================================
@@ -371,6 +388,111 @@ manual_viewer = ManualViewer(
     ]
 )
 
+class UserManager:
+    def __init__(self):
+        self.users = ["Guest"]
+        self.last_user = "Guest"
+        self.load()
+
+    def load(self):
+        if os.path.exists(USERS_FILE):
+            try:
+                with open(USERS_FILE, 'r') as f:
+                    data = json.load(f)
+                    self.users = data.get("users", ["Guest"])
+                    self.last_user = data.get("last_user", "Guest")
+            except Exception as e:
+                print(f"[User] Load Error: {e}")
+
+    def save(self):
+        try:
+            with open(USERS_FILE, 'w') as f:
+                json.dump({"users": self.users, "last_user": self.last_user}, f, indent=4)
+        except Exception as e:
+            print(f"[User] Save Error: {e}")
+
+    def add_user(self, name):
+        if name not in self.users:
+            self.users.append(name)
+            self.save()
+
+    def set_last_user(self, name):
+        self.last_user = name
+        self.save()
+
+# [NEW] User Selection Dialog
+from tkinter import simpledialog
+
+def show_user_selection_dialog():
+    global current_user_name
+    manager = UserManager()
+    
+    root = tk.Tk(); root.withdraw()
+    dlg = tk.Toplevel(root)
+    dlg.title("Select User")
+    dlg.geometry("300x400")
+    dlg.configure(bg='#2b2b2b')
+    
+    # Header
+    tk.Label(dlg, text="Who is training?", bg='#2b2b2b', fg='white', font=('Arial', 12, 'bold')).pack(pady=10)
+    
+    # Listbox
+    frame_list = tk.Frame(dlg, bg='#2b2b2b')
+    frame_list.pack(fill=tk.BOTH, expand=True, padx=10)
+    
+    lb = tk.Listbox(frame_list, bg='#333', fg='white', font=('Arial', 11), height=10)
+    for u in manager.users: lb.insert(tk.END, u)
+    lb.pack(fill=tk.BOTH, expand=True)
+    
+    # Pre-select last
+    if manager.last_user in manager.users:
+        try:
+            idx = manager.users.index(manager.last_user)
+            lb.selection_set(idx)
+            lb.see(idx)
+        except: pass
+    
+    user_selected = [None]
+    
+    def on_select():
+        sel = lb.curselection()
+        if not sel: return
+        name = lb.get(sel[0])
+        user_selected[0] = name
+        dlg.destroy()
+        
+    def on_add_new():
+        new_name = simpledialog.askstring("New User", "Enter Name:", parent=dlg)
+        if new_name and new_name.strip():
+            manager.add_user(new_name.strip())
+            lb.insert(tk.END, new_name.strip())
+            lb.selection_clear(0, tk.END)
+            lb.selection_set(tk.END)
+            lb.see(tk.END)
+
+    btn_frame = tk.Frame(dlg, bg='#2b2b2b')
+    btn_frame.pack(pady=10, fill=tk.X)
+    
+    tk.Button(btn_frame, text="Select", command=on_select, bg='#004400', fg='white', width=10).pack(side=tk.LEFT, padx=10)
+    tk.Button(btn_frame, text="New User", command=on_add_new, bg='#004488', fg='white', width=10).pack(side=tk.RIGHT, padx=10)
+    
+    # Center
+    dlg.update_idletasks()
+    x = (dlg.winfo_screenwidth() // 2) - (dlg.winfo_width() // 2)
+    y = (dlg.winfo_screenheight() // 2) - (dlg.winfo_height() // 2)
+    dlg.geometry(f"+{x}+{y}")
+    
+    root.wait_window(dlg)
+    root.destroy()
+    
+    if user_selected[0]:
+        current_user_name = user_selected[0]
+        manager.set_last_user(current_user_name)
+    else:
+        current_user_name = "Guest" # Fallback
+
+
+
 def map_zoom_to_nearest(zoom_val, slider=None):
     """
     Snap a zoom coefficient to the nearest allowed position.
@@ -399,6 +521,9 @@ def show_manual_popup(event=None):
 
 if __name__ == "__main__":
     # Globals Init
+    
+    # [NEW] User Selection
+    show_user_selection_dialog()
 
     # Start GSR Thread
     gsr_thread = GSRReader()
@@ -409,7 +534,7 @@ if __name__ == "__main__":
     # --- GUI ---
     plt.rcParams['toolbar'] = 'None' # [NEW] Hide Matplotlib navigation controls
     fig = plt.figure(figsize=(15, 9), facecolor='#2b2b2b') 
-    try: fig.canvas.manager.set_window_title("EK GSR/HRM Session Monitor (v42 Dark Viewer)")
+    try: fig.canvas.manager.set_window_title("EK GSR Session Monitor (v42 Dark Viewer)")
     except Exception: pass 
     
     # [NEW] Start Maximized/Fullscreen (Linux Compatibility)
@@ -452,6 +577,13 @@ if __name__ == "__main__":
     
     # [FIX] Load Config EARLY so we know which Mic to probe, and correct GSR defaults
     load_config()
+
+    # [NEW] Initialize Process Runner
+    try:
+        process_runner = ProcessRunner("processes.json")
+        print(f"[Process] Loaded {len(process_runner.list_processes())} processes.")
+    except Exception as e:
+        print(f"[Process] Init Error: {e}")
 
     # [FIX] Probe Audio Immediately (Now that Handler + Config are ready)
     print("[Startup] Probing Audio Device...")
@@ -573,7 +705,8 @@ if __name__ == "__main__":
     ax_overlay.set_zorder(100) # Ensure on top
     
     # [NEW] Calibration Overlay Text (Ax Level)
-    txt_calib_overlay = ax_overlay.text(0.5, 0.5, "", ha='center', va='center', fontsize=24, fontweight='bold', color='red')
+    # [FIX] Re-parented to ax_graph to ensure it is centered on the GRAPH, not the window.
+    txt_calib_overlay = ax_graph.text(0.5, 0.5, "", ha='center', va='center', fontsize=24, fontweight='bold', color='red', transform=ax_graph.transAxes)
     ui_refs['txt_calib_overlay'] = txt_calib_overlay 
     txt_calib_overlay.set_animated(True) # [FIX] Animated
     
@@ -581,6 +714,11 @@ if __name__ == "__main__":
     txt_motion_overlay = ax_graph.text(0.5, 0.5, "", ha='center', va='center', fontsize=20, fontweight='bold', color='red', transform=ax_graph.transAxes)
     ui_refs['txt_motion_overlay'] = txt_motion_overlay
     txt_motion_overlay.set_animated(True) # [FIX] Animated
+
+    # [NEW] Process Overlay Text (Top Center of Graph - Distinct from Calib)
+    txt_process_overlay = ax_graph.text(0.5, 0.90, "", ha='center', va='top', fontsize=14, fontweight='bold', color='#FFCC00', transform=ax_graph.transAxes)
+    ui_refs['txt_process_overlay'] = txt_process_overlay
+    txt_process_overlay.set_animated(True)
     
     # [NEW] GSR Pattern Text (Bottom Center of Graph)
     txt_pattern = ax_graph.text(0.5, 0.02, "PATTERN: IDLE", transform=ax_graph.transAxes, ha='center', va='bottom', fontsize=14, fontweight='bold', color='gray', zorder=90)
@@ -696,7 +834,7 @@ if __name__ == "__main__":
             slider_grabbed = False
 
     def on_key_press(event):
-        global ZOOM_COEFFICIENT
+        global ZOOM_COEFFICIENT, process_waiting_for_input, process_ending_phase
         # [NEW] Arrow Key Zoom Controls (Locked to ZOOM_POSITIONS)
         if event.key in ['left', 'right', 'up', 'down']:
             steps = ZOOM_POSITIONS
@@ -717,6 +855,16 @@ if __name__ == "__main__":
             ZOOM_COEFFICIENT = 1.0 / new_mult
             update_zoom_ui()
         
+        # [NEW] Process Input Hook
+        elif process_waiting_for_input and event.key in [' ', 'enter']:
+            process_waiting_for_input = False
+            active_event_label = "PROCESS_USER_ADVANCE"
+            
+            if process_ending_phase:
+                 finish_process_session()
+            else:
+                 advance_process_step()
+            
         # [NEW] Spacebar auto-sets TA Center to current value
         elif event.key == ' ':
             if latest_gsr_ta > 0.1:
@@ -993,6 +1141,145 @@ if __name__ == "__main__":
     pending_notes = ""
     session_start_ta = 0.0
 
+    # ==========================================
+    #           PROCESS LOGIC
+    # ==========================================
+    def show_process_selector(event=None):
+        if not process_runner:
+            log_msg("Err: Process Runner not init")
+            return
+            
+        # Create Popup
+        # [FIX] Use existing root (Toplevel defaults to default root)
+        dlg = tk.Toplevel()
+        dlg.title("Select Process")
+        dlg.geometry("400x300")
+        dlg.configure(bg='#2b2b2b')
+        
+        lbl = ttk.Label(dlg, text="Available Processes:", background='#2b2b2b', foreground='white', font=('Arial', 12, 'bold'))
+        lbl.pack(pady=10)
+        
+        # Listbox
+        names = process_runner.list_processes()
+        lb = tk.Listbox(dlg, bg='#333', fg='white', font=('Arial', 11))
+        for n in names: lb.insert(tk.END, n)
+        lb.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        def on_select():
+            sel = lb.curselection()
+            if not sel: return
+            name = lb.get(sel[0])
+            dlg.destroy()
+            # Start
+            start_process_session(name)
+            
+        btn = tk.Button(dlg, text="START SESSION", command=on_select, bg='#004400', fg='white', font=('Arial', 10, 'bold'))
+        btn.pack(pady=10, fill=tk.X, padx=10)
+        
+        # Center
+        dlg.update_idletasks()
+        w = dlg.winfo_width(); h = dlg.winfo_height()
+        x = (dlg.winfo_screenwidth() // 2) - (w // 2)
+        y = (dlg.winfo_screenheight() // 2) - (h // 2)
+        dlg.geometry(f"+{x}+{y}")
+        
+        # Bring to front?
+        dlg.transient()
+        dlg.grab_set()
+        dlg.wait_window() # Block until closed
+
+    def start_process_session(name):
+        # [MOD] Don't start immediately. Queue via Notes Dialog.
+        
+        # Verify process exists first
+        p_data = process_runner.get_process_data(name)
+        if not p_data:
+            log_msg(f"Err: Process {name} data not found")
+            return
+            
+        show_session_notes_dialog(prefill_process=name)
+
+    def advance_process_step():
+        global process_step_idx, process_waiting_for_input, active_process_data, active_event_label
+        
+        if not active_process_data: return
+        
+        steps = active_process_data.get('steps', [])
+        
+        if process_step_idx >= len(steps):
+             # [MOD] Intermediate "Session Complete" Step
+             enter_process_ending_phase()
+             return
+            
+        # Get Step
+        step = steps[process_step_idx]
+        text = step.get('text', "")
+        audio_file = step.get('audio_file', "")
+        
+        # Visuals
+        log_msg(f"[Process] Step {process_step_idx+1}: {text}")
+        if 'txt_process_overlay' in ui_refs:
+            ui_refs['txt_process_overlay'].set_text(text + "\n\n(Press SPACE or ENTER to Continue)")
+            ui_refs['txt_process_overlay'].set_color('#FFCC00') # Orange/Gold
+            ui_refs['txt_process_overlay'].set_fontsize(14) # Smaller than main overlay
+            ui_refs['txt_process_overlay'].set_visible(True)
+            
+        # Audio
+        # Use Thread or Non-Blocking Play to avoid UI freeze
+        # ProcessRunner refactored to be non-blocking play call
+        threading.Thread(target=lambda: play_step_audio(text, audio_file), daemon=True).start()
+        
+        process_waiting_for_input = True
+        active_event_label = f"STEP_{process_step_idx+1}_START"
+        
+        # Prepare for next
+        process_step_idx += 1
+
+    def enter_process_ending_phase():
+        """Shows session complete message and waits for final confirmation."""
+        global process_waiting_for_input, process_ending_phase
+        
+        log_msg("[Process] All steps complete. Waiting for user confirmation.")
+        
+        if 'txt_process_overlay' in ui_refs:
+            ui_refs['txt_process_overlay'].set_text("SESSION COMPLETE\n(Press SPACE or ENTER to Finish)")
+            ui_refs['txt_process_overlay'].set_color('#00FF00') # Green
+            ui_refs['txt_process_overlay'].set_visible(True)
+            
+        process_ending_phase = True
+        process_waiting_for_input = True # Enable key handler to catch the final press
+
+    def play_step_audio(text, audio_file):
+        # Prepare (can take time for TTS)
+        f_path = process_runner.prepare_step_audio(text, audio_file)
+        if f_path:
+            # wait for channel free?
+            while process_runner.is_playing():
+                time.sleep(0.1)
+            process_runner.play_audio_file(f_path)
+
+    def finish_process_session():
+        global active_process_name, active_process_data, active_process_input
+        log_msg("Process Session Complete.")
+        
+        if 'txt_process_overlay' in ui_refs:
+            ui_refs['txt_process_overlay'].set_text("SESSION COMPLETE")
+            ui_refs['txt_process_overlay'].set_color('white')
+            
+        # Reset Logic
+        active_process_name = None
+        active_process_data = None
+        process_waiting_for_input = False
+        process_ending_phase = False
+        
+        # Stop Recording? User requested step 9: "stop recording"
+        # Confirm "End of Session" -> then Stop?
+        # Flow: Last question finished -> confirm -> End msg -> Stop.
+        # Implemented: End msg is shown.
+        # Trigger stop?
+        if is_recording:
+            toggle_rec(None)
+
     def start_actual_recording():
         global is_recording, f_gsr, writer_gsr, recording_start_time_obj
         global notes_filename, audio_filename # [FIX] Restored audio_filename
@@ -1056,6 +1343,90 @@ if __name__ == "__main__":
             log_msg(f"Start Err: {ex}")
             is_recording = False
 
+    # [NEW] Refactored Notes Dialog
+    def show_session_notes_dialog(prefill_process=None, manual_trigger=False):
+        global pending_notes, pending_rec, calib_mode, is_recording, current_user_name
+        
+        # [NEW] Check Mic Selection First
+        if audio_handler.selected_device_idx is None:
+             log_msg("Err: No Mic Selected!")
+             return
+
+        # [FIX] Use existing root
+        dlg = tk.Toplevel()
+        dlg.title("Session Notes")
+        dlg.geometry("500x400")
+        dlg.configure(bg='#f0f0f0')
+        
+        tk.Label(dlg, text="Session Details", font=("Arial", 12, "bold"), bg='#f0f0f0').pack(pady=10)
+        
+        # Prefill Logic
+        p_user = current_user_name
+        p_proc = prefill_process if prefill_process else ""
+        
+        template_text = f"Client Name: {p_user}\n\nProcess Run: {p_proc}\n\nOther Notes:"
+        
+        txt = tk.Text(dlg, width=50, height=15, font=("Arial", 10))
+        txt.pack(padx=10, pady=5, expand=True, fill='both')
+        txt.insert("1.0", template_text)
+        txt.focus_set()
+        
+        user_choice = [None] # [None] or "start"
+
+        def on_submit():
+            user_choice[0] = "start"
+            # [FIX] Get text BEFORE destroy
+            global pending_notes
+            pending_notes = txt.get("1.0", "end-1c")
+            dlg.destroy()
+            
+        def on_cancel():
+            dlg.destroy()
+            
+        btn_frame = tk.Frame(dlg, bg='#f0f0f0')
+        btn_frame.pack(pady=10)
+        tk.Button(btn_frame, text="Start Session", command=on_submit, bg="#ddffdd", height=2, width=15).pack(side='left', padx=10)
+        tk.Button(btn_frame, text="Cancel", command=on_cancel, width=10).pack(side='left', padx=10)
+        
+        # Center
+        dlg.update_idletasks()
+        x = (dlg.winfo_screenwidth() // 2) - (dlg.winfo_width() // 2)
+        y = (dlg.winfo_screenheight() // 2) - (dlg.winfo_height() // 2)
+        dlg.geometry(f"+{x}+{y}")
+        
+        dlg.transient()
+        dlg.grab_set()
+        dlg.wait_window()
+        
+        if user_choice[0] == "start":
+             # START LOGIC
+             start_actual_recording()
+             pending_rec = True
+             
+             if prefill_process:
+                  # PROCESS START
+                  global active_process_name, active_process_data, process_step_idx, process_waiting_for_calib, process_waiting_for_input
+                  # Verify we have the data (should be cached)
+                  if process_runner:
+                       p_data = process_runner.get_process_data(prefill_process)
+                       if p_data:
+                            active_process_name = prefill_process
+                            active_process_data = p_data
+                            process_step_idx = 0
+                            process_waiting_for_calib = True
+                            process_waiting_for_input = False
+                            
+                            if 'txt_process_overlay' in ui_refs:
+                                 ui_refs['txt_process_overlay'].set_text(f"PROCESS: {prefill_process}\n(Waiting for Calibration)")
+                                 ui_refs['txt_process_overlay'].set_visible(True)
+             
+             # ALWAYS start Calibration
+             start_calibration(None)
+             
+        elif manual_trigger:
+             # If cancelled during manual toggle, ensure state is reset
+             pass
+
     def toggle_rec(_):
         #print("DEBUG: toggle_rec clicked") # [DEBUG]
         global is_recording, f_gsr, writer_gsr, recording_start_time_obj
@@ -1063,51 +1434,11 @@ if __name__ == "__main__":
         global pending_rec, pending_notes, calib_mode, calib_step, calib_phase, calib_start_time, calib_base_ta, calib_min_ta, counting_active
         
         if not is_recording:
-             if audio_handler.selected_device_idx is None:
-                  #print("DEBUG: No Mic Selected") # [DEBUG]
-                  #log_msg("Err: No Mic Selected!")
-                  return
-                 
-             root = tk.Tk(); root.withdraw()
-             note_data = {"text": None}
-             
-             dlg = tk.Toplevel(root)
-             dlg.title("Session Notes")
-             dlg.geometry("500x400")
-             
-             tk.Label(dlg, text="Enter Session Details:", font=("Arial", 10, "bold")).pack(pady=5)
-             template_text = "Client Name: \n\nProcess Run: \n\nOther Notes:"
-             
-             txt = tk.Text(dlg, width=50, height=15, font=("Arial", 10))
-             txt.pack(padx=10, pady=5, expand=True, fill='both')
-             txt.insert("1.0", template_text)
-             txt.focus_set()
-             
-             def on_submit():
-                 note_data["text"] = txt.get("1.0", "end-1c")
-                 dlg.destroy()
-                 
-             def on_cancel():
-                 dlg.destroy()
-                 
-             btn_frame = tk.Frame(dlg)
-             btn_frame.pack(pady=10)
-             tk.Button(btn_frame, text="Start Recording", command=on_submit, bg="#ddffdd", height=2).pack(side='left', padx=10)
-             tk.Button(btn_frame, text="Cancel", command=on_cancel).pack(side='left', padx=10)
-             
-             root.wait_window(dlg)
-             root.destroy()
-             
-             if note_data["text"] is None: return # User Cancelled
-             
-             # [NEW] Queue Calibration
-             pending_notes = note_data["text"]
-             start_actual_recording() # [REQ] Start timer immediately
-             pending_rec = True # Use this flag to trigger the "SESSION STARTED" message after calib
-             
-             start_calibration(None)
+             # MANUAL START -> Notes Dialog
+             show_session_notes_dialog(prefill_process=None, manual_trigger=True)
              
         else:
+             # STOP Logic (Same as before)
              is_recording = False
              audio_handler.is_recording = False
              if counting_active: toggle_count(None) # [REQ] Stop TA Counter on Session Stop
@@ -1183,19 +1514,26 @@ if __name__ == "__main__":
     ax_detail.text(0.5, 0.85, "Session Detail", ha='center', va='center', fontsize=11, fontweight='bold', color='white')
     
     # Text Fields
-    txt_sess_date = ax_detail.text(0.05, 0.60, "Date: --", ha='left', va='center', fontsize=9, color='#ccc')
-    txt_sess_time = ax_detail.text(0.05, 0.40, "Time: --", ha='left', va='center', fontsize=9, color='#ccc')
+    # [NEW] User Name
+    # Date/Time shifted down (0.60 -> 0.55 etc)
+    txt_sess_user = ax_detail.text(0.05, 0.68, f"User: {current_user_name}", ha='left', va='center', fontsize=10, fontweight='bold', color='#FFCC00')
+    txt_sess_date = ax_detail.text(0.05, 0.48, "Date: --", ha='left', va='center', fontsize=9, color='#ccc')
+    txt_sess_time = ax_detail.text(0.05, 0.32, "Time: --", ha='left', va='center', fontsize=9, color='#ccc')
     txt_sess_len  = ax_detail.text(0.05, 0.15, "Duration : 00:00:00", ha='left', va='center', fontsize=10, fontweight='bold', color='white')
+    
+    txt_sess_user.set_animated(True)
     txt_sess_date.set_animated(True)
     txt_sess_time.set_animated(True)
     txt_sess_len.set_animated(True)
     
+    ui_refs['txt_sess_user'] = txt_sess_user
     ui_refs['txt_sess_date'] = txt_sess_date
     ui_refs['txt_sess_time'] = txt_sess_time
     ui_refs['txt_sess_len'] = txt_sess_len
 
     # --- SYSTEM CONTROLS PANEL ---
-    r_sys_bg = [0.835, 0.405, 0.13, 0.25]
+    # [FIX] Extended Height to fit 5 buttons
+    r_sys_bg = [0.835, 0.355, 0.13, 0.30]
     ax_system_bg = reg_ax(r_sys_bg, main_view_axes)
     ax_system_bg.set_facecolor('#333333')
     ax_system_bg.set_xticks([]); ax_system_bg.set_yticks([])
@@ -1215,8 +1553,19 @@ if __name__ == "__main__":
     ui_refs['btn_calib'].label.set_animated(True)    
     ui_refs['btn_calib'].on_clicked(start_calibration)
     
-    # [NEW] Manual Button Standardized
-    r_man = [0.85, 0.525, 0.10, 0.04]
+    ui_refs['btn_calib'].on_clicked(start_calibration)
+    
+    # [NEW] Processes Button
+    r_proc = [0.85, 0.525, 0.10, 0.04]
+    ax_proc = reg_ax(r_proc, main_view_axes)
+    ui_refs['btn_processes'] = Button(ax_proc, "Processes", color='#550055', hovercolor='#770077')
+    ui_refs['btn_processes'].label.set_color('white')
+    ui_refs['btn_processes'].ax.patch.set_animated(True)
+    ui_refs['btn_processes'].label.set_animated(True)
+    ui_refs['btn_processes'].on_clicked(show_process_selector)
+
+    # [NEW] Manual Button Standardized (Shifted Down)
+    r_man = [0.85, 0.475, 0.10, 0.04]
     ax_man = reg_ax(r_man, main_view_axes)
     ui_refs['btn_manual'] = Button(ax_man, "Manual", color='#2980b9', hovercolor='#3498db')
     ui_refs['btn_manual'].label.set_color('white')
@@ -1224,10 +1573,8 @@ if __name__ == "__main__":
     ui_refs['btn_manual'].label.set_animated(True)
     ui_refs['btn_manual'].on_clicked(show_manual_popup)
 
-    # [NEW] Viewer Button (Below Manual)
-    # Manual: x=0.85, y=0.20, h=0.04
-    # Viewer: x=0.85, y=0.155 (Gap 0.005), w=0.13, h=0.04
-    r_view = [0.85, 0.475, 0.10, 0.04]
+    # [NEW] Viewer Button (Below Manual - Shifted Down)
+    r_view = [0.85, 0.425, 0.10, 0.04]
     ax_view = reg_ax(r_view, main_view_axes)
     ui_refs['btn_viewer'] = Button(ax_view, "Viewer", color='#552255', hovercolor='#773377')
     ui_refs['btn_viewer'].label.set_color('white')
@@ -1235,7 +1582,7 @@ if __name__ == "__main__":
     ui_refs['btn_viewer'].label.set_animated(True)
 
     # [FIX] Relocated Buttons (Now inside SYSTEM CONTROLS)
-    r_ts = [0.85, 0.425, 0.10, 0.04]
+    r_ts = [0.85, 0.375, 0.10, 0.04] # [FIX] Shifted down to avoid overlap
     ax_to_set = reg_ax(r_ts, main_view_axes)
     ui_refs['btn_to_settings'] = Button(ax_to_set, "Settings >", color='#444444', hovercolor='#666666')
     ui_refs['btn_to_settings'].label.set_color('white')
@@ -1503,7 +1850,7 @@ if __name__ == "__main__":
         global headset_on_head, LOG_WINDOW_HEIGHT
         global calib_mode, calib_phase, calib_step, calib_start_time, calib_step_start_time, calib_base_ta, calib_min_ta, calib_vals, last_calib_ratio
         global recording_start_time_obj, is_recording, session_start_ta, pending_rec
-        global active_event_label
+        global active_event_label, process_waiting_for_calib
         global first_run_center # [FIX] Add global
         global GSR_CENTER_VAL, GSR_CENTER_TARGET # [FIX] Add globals for smooth dampening
         global graph_bg, bg_scores, bg_count, bg_detail, bg_status, bg_sens, bg_info, bg_scale_panel, bg_system_panel
@@ -1950,6 +2297,11 @@ if __name__ == "__main__":
                                     if ovl: ovl.set_text("")
                                     log_msg("Calibration Complete")
                                     active_event_label = "CALIB_COMPLETE"
+                                    
+                                    # [NEW] Process Hook
+                                    if process_waiting_for_calib:
+                                        process_waiting_for_calib = False
+                                        advance_process_step()
 
                         elif calib_phase == 3:
                              msg = "SESSION STARTED"
@@ -1962,6 +2314,11 @@ if __name__ == "__main__":
                                   active_event_label = "SESSION_STARTED" # [REQ] Log Event
                                   if ovl: ovl.set_text("")
                                   log_msg("Calibration Sequence Finished")
+                                  
+                                  # [NEW] Process Hook
+                                  if process_waiting_for_calib:
+                                      process_waiting_for_calib = False
+                                      advance_process_step()
 
                         elif calib_phase == 5:
                              # [NEW] Error Phase
@@ -2105,15 +2462,18 @@ if __name__ == "__main__":
             
             if 'txt_sess_len' in ui_refs: ax_detail.draw_artist(ui_refs['txt_sess_len'])
             if 'txt_sess_date' in ui_refs: ax_detail.draw_artist(ui_refs['txt_sess_date'])
+            if 'txt_sess_user' in ui_refs: ax_detail.draw_artist(ui_refs['txt_sess_user'])
             if 'txt_sess_time' in ui_refs: ax_detail.draw_artist(ui_refs['txt_sess_time'])
 
             if 'txt_calib_overlay' in ui_refs and ui_refs['txt_calib_overlay'].get_visible():
-                ax_overlay.draw_artist(ui_refs['txt_calib_overlay'])
+                ax_graph.draw_artist(ui_refs['txt_calib_overlay'])
             if 'txt_motion_overlay' in ui_refs and ui_refs['txt_motion_overlay'].get_visible():
                 ax_graph.draw_artist(ui_refs['txt_motion_overlay'])
+            if 'txt_process_overlay' in ui_refs and ui_refs['txt_process_overlay'].get_visible():
+                ax_graph.draw_artist(ui_refs['txt_process_overlay'])
 
             # Draw Buttons
-            for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer', 'btn_calib', 'btn_exit']:
+            for b_key in ['btn_count', 'btn_reset', 'btn_ta_set_now', 'btn_rec', 'btn_processes', 'btn_to_settings', 'btn_back', 'btn_manual', 'btn_viewer', 'btn_calib', 'btn_exit']:
                  if b_key in ui_refs and ui_refs[b_key].ax.get_visible():
                       b = ui_refs[b_key]
                       b.ax.draw_artist(b.ax.patch)
@@ -2148,6 +2508,7 @@ if __name__ == "__main__":
             if 'ax_zoom_track' in ui_refs: fig.canvas.blit(ui_refs['ax_zoom_track'].bbox)
             if 'ax_calib' in ui_refs: fig.canvas.blit(ui_refs['ax_calib'].bbox)
             if 'btn_rec' in ui_refs: fig.canvas.blit(ui_refs['btn_rec'].ax.bbox)
+            if 'btn_processes' in ui_refs and ui_refs['btn_processes'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_processes'].ax.bbox)
             if 'btn_to_settings' in ui_refs and ui_refs['btn_to_settings'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_to_settings'].ax.bbox)
             if 'btn_manual' in ui_refs and ui_refs['btn_manual'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_manual'].ax.bbox)
             if 'btn_viewer' in ui_refs and ui_refs['btn_viewer'].ax.get_visible(): fig.canvas.blit(ui_refs['btn_viewer'].ax.bbox)

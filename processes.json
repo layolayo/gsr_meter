@@ -1,0 +1,76 @@
+{
+    "processes": [
+        {
+            "name": "Test Process",
+            "steps": [
+                {
+                    "text": "What is being experienced?"
+                },
+                {
+                    "text": "This is a text-to-speech test. Please verify audio quality."
+                }
+            ]
+        },
+        {
+            "name": "Process 4",
+            "steps": [
+                {
+                    "text": "And where are you now?",
+                    "audio_file": "process_audio/Now.wav"
+                },
+                {
+                    "text": "And where have you been?",
+                    "audio_file": "process_audio/Been.wav"
+                },
+                {
+                    "text": "And compare that to where you are now",
+                    "audio_file": "process_audio/Compare.wav"
+                },
+                {
+                    "text": "And where might you be?",
+                    "audio_file": "process_audio/Be.wav"
+                },
+                {
+                    "text": "And compare that to where you are now",
+                    "audio_file": "process_audio/Compare.wav"
+                },
+		{
+                    "text": "And where else have you been?",
+                    "audio_file": "process_audio/BeenElse.wav"
+                },
+                {
+                    "text": "And compare that to where you are now",
+                    "audio_file": "process_audio/Compare.wav"
+                },
+                {
+                    "text": "And where else might you be?",
+                    "audio_file": "process_audio/BeElse.wav"
+                },
+                {
+                    "text": "And compare that to where you are now",
+                    "audio_file": "process_audio/Compare.wav"
+                },
+                {
+                    "text": "And where else have you been?",
+                    "audio_file": "process_audio/BeenElse.wav"
+                },
+                {
+                    "text": "And compare that to where you are now",
+                    "audio_file": "process_audio/Compare.wav"
+                },
+                {
+                    "text": "And where else might you be?",
+                    "audio_file": "process_audio/BeElse.wav"
+                },
+                {
+                    "text": "And compare that to where you are now",
+                    "audio_file": "process_audio/Compare.wav"
+                },
+                {
+                    "text": "And where are you now?",
+                    "audio_file": "process_audio/Now.wav"
+                }
+            ]
+        }
+    ]
+}
