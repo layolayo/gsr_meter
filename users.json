@@ -1,7 +1,25 @@
 {
-    "users": [
-        "Matthew",
-        "Guest"
-    ],
-    "last_user": "Matthew"
+    "users": {
+        "1": {
+            "id": 1,
+            "voice_tld": "co.uk",
+            "voice_gender": "Female",
+            "audio_enabled": true,
+            "gsr_center": 4.28740501719061,
+            "log_window": 0.05,
+            "zoom_coeff": 1.0,
+            "name": "Matthew"
+        },
+        "2": {
+            "id": 2,
+            "voice_tld": "com",
+            "voice_gender": "Female",
+            "audio_enabled": true,
+            "gsr_center": 3.0,
+            "log_window": 0.05,
+            "zoom_coeff": 1.0,
+            "name": "Guest"
+        }
+    },
+    "last_user_id": 1
 }

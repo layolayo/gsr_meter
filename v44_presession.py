@@ -105,7 +105,6 @@ active_process_data = None
 process_step_idx = -1
 process_waiting_for_calib = False
 process_waiting_for_input = False
-process_waiting_for_input = False
 process_ending_phase = False
 process_in_closing_phase = False # [NEW]
 current_q_set = ""
@@ -113,8 +112,10 @@ current_q_id = ""
 current_q_text = ""
 
 # [NEW] User Management Globals
+current_user_id = None
 current_user_name = "Guest"
 USERS_FILE = "users.json"
+user_manager = None # Initialized later
 
 
 
@@ -337,10 +338,21 @@ def save_config():
         # Solution: Use a global `active_graph_lines` list or similar.
         # Let's inspect line 700 area again.
         
+        if 'user_manager' in globals() and user_manager and current_user_id:
+             user_manager.update_settings(current_user_id, {
+                 'gsr_center': GSR_CENTER_VAL,
+                 'log_window': LOG_WINDOW_HEIGHT,
+                 'zoom_coeff': ZOOM_COEFFICIENT,
+                 'voice_tld': process_runner.voice_tld if process_runner else "co.uk",
+                 'voice_gender': process_runner.voice_gender if process_runner else "Female",
+                 'audio_enabled': process_runner.audio_enabled if process_runner else True
+             })
+             
         cfg = {
             'mic_name': audio_handler.current_mic_name if 'audio_handler' in globals() else "Default",
             'mic_gain': audio_handler.current_mic_gain if 'audio_handler' in globals() else 3.0,
             'mic_rate': audio_handler.current_mic_rate if 'audio_handler' in globals() else None, 
+            # Global fallbacks if no user loaded
             'gsr_center': GSR_CENTER_VAL,
             'log_window': LOG_WINDOW_HEIGHT, 
             'zoom_coeff': ZOOM_COEFFICIENT
@@ -402,8 +414,17 @@ manual_viewer = ManualViewer(
 
 class UserManager:
     def __init__(self):
-        self.users = ["Guest"]
-        self.last_user = "Guest"
+        self.users = {} # ID -> Settings Dict (must include "name")
+        self.last_user_id = None
+        self.default_settings = {
+            "name": "Guest",
+            "voice_tld": "co.uk",
+            "voice_gender": "Female",
+            "audio_enabled": True,
+            "gsr_center": 3.0,
+            "log_window": 0.05,
+            "zoom_coeff": 1.0
+        }
         self.load()
 
     def load(self):
@@ -411,33 +432,87 @@ class UserManager:
             try:
                 with open(USERS_FILE, 'r') as f:
                     data = json.load(f)
-                    self.users = data.get("users", ["Guest"])
-                    self.last_user = data.get("last_user", "Guest")
+                    raw_users = data.get("users", {})
+                    
+                    # Migration Logic
+                    if isinstance(raw_users, list):
+                        # Old list format: ["User1", "User2"]
+                        self.users = {}
+                        for i, name in enumerate(raw_users):
+                            u_id = i + 1
+                            s = self.default_settings.copy()
+                            s["name"] = name
+                            self.users[u_id] = s
+                    elif isinstance(raw_users, dict):
+                        # Check if keys are names (old dict format) or IDs (new format)
+                        sample_key = next(iter(raw_users.keys())) if raw_users else None
+                        if sample_key and not sample_key.isdigit():
+                            # Old Name-indexed dict: {"Name": {settings}}
+                            self.users = {}
+                            for i, (name, settings) in enumerate(raw_users.items()):
+                                u_id = settings.get("id", i + 1)
+                                s = settings.copy()
+                                s["name"] = name
+                                self.users[u_id] = s
+                        else:
+                            # New ID-indexed dict: {"1": {name: "Name", settings}}
+                            self.users = {int(k): v for k, v in raw_users.items()}
+                    
+                    self.last_user_id = data.get("last_user_id")
+                    if not self.last_user_id and "last_user" in data:
+                        # Migrate last_user (name) to ID
+                        name = data["last_user"]
+                        for uid, udata in self.users.items():
+                            if udata.get("name") == name:
+                                self.last_user_id = uid
+                                break
             except Exception as e:
                 print(f"[User] Load Error: {e}")
+        
+        if not self.users:
+            self.users = {1: self.default_settings.copy()}
+            self.last_user_id = 1
 
     def save(self):
         try:
             with open(USERS_FILE, 'w') as f:
-                json.dump({"users": self.users, "last_user": self.last_user}, f, indent=4)
+                json.dump({"users": self.users, "last_user_id": self.last_user_id}, f, indent=4)
         except Exception as e:
             print(f"[User] Save Error: {e}")
 
     def add_user(self, name):
-        if name not in self.users:
-            self.users.append(name)
+        # Find next ID
+        new_id = max(self.users.keys()) + 1 if self.users else 1
+        s = self.default_settings.copy()
+        s["name"] = name
+        self.users[new_id] = s
+        self.save()
+        return new_id
+
+    def set_last_user(self, u_id):
+        self.last_user_id = u_id
+        self.save()
+        
+    def get_settings(self, u_id):
+        if u_id in self.users:
+            return self.users[u_id]
+        return self.default_settings.copy()
+        
+    def update_settings(self, u_id, settings):
+        if u_id in self.users:
+            self.users[u_id].update(settings)
             self.save()
 
-    def set_last_user(self, name):
-        self.last_user = name
-        self.save()
+    def get_name(self, u_id):
+        return self.users.get(u_id, {}).get("name", "Unknown")
 
 # [NEW] User Selection Dialog
 from tkinter import simpledialog
 
 def show_user_selection_dialog():
-    global current_user_name
-    manager = UserManager()
+    global current_user_id, current_user_name, user_manager
+    if user_manager is None:
+        user_manager = UserManager()
     
     root = tk.Tk(); root.withdraw()
     dlg = tk.Toplevel(root)
@@ -445,42 +520,59 @@ def show_user_selection_dialog():
     dlg.geometry("300x400")
     dlg.configure(bg='#2b2b2b')
     
-    # Header
     tk.Label(dlg, text="Who is training?", bg='#2b2b2b', fg='white', font=('Arial', 12, 'bold')).pack(pady=10)
     
-    # Listbox
     frame_list = tk.Frame(dlg, bg='#2b2b2b')
     frame_list.pack(fill=tk.BOTH, expand=True, padx=10)
     
     lb = tk.Listbox(frame_list, bg='#333', fg='white', font=('Arial', 11), height=10)
-    for u in manager.users: lb.insert(tk.END, u)
+    # Map Display Name -> ID
+    name_to_id = {}
+    for u_id, u_data in user_manager.users.items():
+        u_name = u_data.get("name", f"User {u_id}")
+        name_to_id[u_name] = u_id
+    
+    sorted_names = sorted(name_to_id.keys())
+    for name in sorted_names:
+        lb.insert(tk.END, name)
     lb.pack(fill=tk.BOTH, expand=True)
     
     # Pre-select last
-    if manager.last_user in manager.users:
+    last_name = user_manager.get_name(user_manager.last_user_id)
+    if last_name in sorted_names:
         try:
-            idx = manager.users.index(manager.last_user)
+            idx = sorted_names.index(last_name)
             lb.selection_set(idx)
             lb.see(idx)
         except: pass
     
-    user_selected = [None]
+    id_selected = [None]
     
     def on_select():
         sel = lb.curselection()
         if not sel: return
         name = lb.get(sel[0])
-        user_selected[0] = name
+        id_selected[0] = name_to_id.get(name)
         dlg.destroy()
         
     def on_add_new():
         new_name = simpledialog.askstring("New User", "Enter Name:", parent=dlg)
         if new_name and new_name.strip():
-            manager.add_user(new_name.strip())
-            lb.insert(tk.END, new_name.strip())
-            lb.selection_clear(0, tk.END)
-            lb.selection_set(tk.END)
-            lb.see(tk.END)
+            name = new_name.strip()
+            new_id = user_manager.add_user(name)
+            # Refresh list
+            lb.delete(0, tk.END)
+            name_to_id.clear()
+            for u_id, u_data in user_manager.users.items():
+                name_to_id[u_data["name"]] = u_id
+            
+            nonlocal sorted_names
+            sorted_names = sorted(name_to_id.keys())
+            for n in sorted_names: lb.insert(tk.END, n)
+            
+            idx = sorted_names.index(name)
+            lb.selection_set(idx)
+            lb.see(idx)
 
     btn_frame = tk.Frame(dlg, bg='#2b2b2b')
     btn_frame.pack(pady=10, fill=tk.X)
@@ -494,14 +586,57 @@ def show_user_selection_dialog():
     y = (dlg.winfo_screenheight() // 2) - (dlg.winfo_height() // 2)
     dlg.geometry(f"+{x}+{y}")
     
-    root.wait_window(dlg)
+    dlg.transient()
+    dlg.grab_set()
+    dlg.wait_window()
     root.destroy()
     
-    if user_selected[0]:
-        current_user_name = user_selected[0]
-        manager.set_last_user(current_user_name)
+    if id_selected[0] is not None:
+        current_user_id = id_selected[0]
+        user_manager.set_last_user(current_user_id)
     else:
-        current_user_name = "Guest" # Fallback
+        # Fallback to last user if closed without selection
+        current_user_id = user_manager.last_user_id
+        
+    current_user_name = user_manager.get_name(current_user_id)
+    apply_user_settings(current_user_id, user_manager)
+
+def apply_user_settings(u_id, manager):
+    """Applies per-user settings to global variables and ProcessRunner."""
+    global LOG_WINDOW_HEIGHT, GSR_CENTER_VAL, ZOOM_COEFFICIENT, process_runner
+    settings = manager.get_settings(u_id)
+    name = settings.get("name", "Unknown")
+    
+    LOG_WINDOW_HEIGHT = settings.get("log_window", 0.05)
+    GSR_CENTER_VAL = settings.get("gsr_center", 3.0)
+    ZOOM_COEFFICIENT = settings.get("zoom_coeff", 1.0)
+    
+    if process_runner:
+        process_runner.voice_tld = settings.get("voice_tld", "co.uk")
+        process_runner.voice_gender = settings.get("voice_gender", "Female")
+        process_runner.audio_enabled = settings.get("audio_enabled", True)
+        
+        # [NEW] Sync Settings UI Buttons
+        if 'accent_btns' in ui_refs:
+            for tld, btn in ui_refs['accent_btns'].items():
+                btn.color = '#444444' if tld != process_runner.voice_tld else '#0066aa'
+        
+        if 'gender_btns' in ui_refs:
+             for gen, btn in ui_refs['gender_btns'].items():
+                  btn.color = '#444444' if gen != process_runner.voice_gender else '#006688'
+
+        if 'btn_audio_toggle' in ui_refs:
+            btn = ui_refs['btn_audio_toggle']
+            btn.label.set_text("Audio: OFF" if not process_runner.audio_enabled else "Audio: ON")
+            btn.color = '#660000' if not process_runner.audio_enabled else '#006600'
+    
+    print(f"[User] Applied settings for '{name}': Accent={settings.get('voice_tld')}, Gender={settings.get('voice_gender')}, Audio={'ON' if settings.get('audio_enabled') else 'OFF'}")
+    
+    # Update UI if needed
+    if 'txt_sess_user' in ui_refs:
+        ui_refs['txt_sess_user'].set_text(f"User: {name}")
+    
+    update_zoom_ui()
 
 
 
@@ -534,9 +669,6 @@ def show_manual_popup(event=None):
 if __name__ == "__main__":
     # Globals Init
     
-    # [NEW] User Selection
-    show_user_selection_dialog()
-
     # Start GSR Thread
     gsr_thread = GSRReader()
     gsr_thread.start()
@@ -1287,6 +1419,14 @@ if __name__ == "__main__":
         # Reset index to 0 of closing list
         process_step_idx = 0
         
+        # [NEW] Deduplicate Closing: If first closing question matches the one we just asked, skip it
+        closing_questions_list = process_runner.get_closing_questions()
+        if closing_questions_list and current_q_text:
+             first_closing_text = closing_questions_list[0].get('text')
+             if current_q_text == first_closing_text:
+                  print(f"[Process] Skipping redundant closing question: {first_closing_text}")
+                  process_step_idx = 1
+        
         # Start immediately
         advance_process_step()
 
@@ -1329,19 +1469,34 @@ if __name__ == "__main__":
         # Visuals
         log_msg(f"[{prefix}] {process_step_idx+1}: {text}")
         if 'txt_process_overlay' in ui_refs:
-            ui_refs['txt_process_overlay'].set_text(text + "\n\n(Press SPACE or ENTER to Continue)")
+            ui_refs['txt_process_overlay'].set_text(text)
             ui_refs['txt_process_overlay'].set_color('#FFCC00') # Orange/Gold
-            ui_refs['txt_process_overlay'].set_fontsize(14) # Smaller than main overlay
+            ui_refs['txt_process_overlay'].set_fontsize(13) # [MOD] Smaller instruction
             ui_refs['txt_process_overlay'].set_visible(True)
             
         # Audio
         threading.Thread(target=lambda: play_step_audio(text, audio_file), daemon=True).start()
         
-        process_waiting_for_input = True
+        # [NEW] Auto-Advance Check
+        auto_adv = step.get('auto_advance', False)
+        
+        process_waiting_for_input = not auto_adv # If auto-adv, don't wait for input
         active_event_label = f"{prefix}_{process_step_idx+1}_START"
         
         # Prepare for next
         process_step_idx += 1
+        
+        if auto_adv:
+            # Threaded wait for audio then advance
+            def _auto_adv_task():
+                # Give TTS a moment to start
+                time.sleep(1.0)
+                while process_runner.is_playing():
+                    time.sleep(0.1)
+                time.sleep(0.5) # Short pause after audio
+                if active_process_name: # Still running?
+                    advance_process_step()
+            threading.Thread(target=_auto_adv_task, daemon=True).start()
 
     def trigger_closing_sequence():
         """Interrupts current process and jumps to closing questions."""
@@ -1378,6 +1533,40 @@ if __name__ == "__main__":
         process_ending_phase = True
         process_waiting_for_input = True # Enable key handler to catch the final press
 
+    def reset_process_state():
+        global active_process_name, active_process_data, process_step_idx
+        global process_waiting_for_calib, process_waiting_for_input
+        global process_ending_phase, process_in_closing_phase
+        global current_q_set, current_q_id, current_q_text
+        
+        print("[Process] Resetting all process state variables.")
+        active_process_name = None
+        active_process_data = None
+        process_step_idx = -1
+        process_waiting_for_calib = False
+        process_waiting_for_input = False
+        process_ending_phase = False
+        process_in_closing_phase = False
+        current_q_set = ""
+        current_q_id = ""
+        current_q_text = ""
+
+    def speak_confirmation(text):
+        """Plays a brief voice confirmation for settings changes."""
+        if process_runner and process_runner.audio_enabled:
+            def _task():
+                # Locate or generate audio
+                f_path = process_runner.prepare_step_audio(text, None)
+                if f_path:
+                    # Optional: wait for previous audio to finish?
+                    # For confirmation, we just want it to be responsive.
+                    try:
+                        while process_runner.is_playing():
+                            time.sleep(0.1)
+                        process_runner.play_audio_file(f_path)
+                    except: pass
+            threading.Thread(target=_task, daemon=True).start()
+
     def play_step_audio(text, audio_file):
         # Prepare (can take time for TTS)
         f_path = process_runner.prepare_step_audio(text, audio_file)
@@ -1396,10 +1585,7 @@ if __name__ == "__main__":
             ui_refs['txt_process_overlay'].set_color('white')
             
         # Reset Logic
-        active_process_name = None
-        active_process_data = None
-        process_waiting_for_input = False
-        process_ending_phase = False
+        reset_process_state()
         
         # Stop Recording? User requested step 9: "stop recording"
         # Confirm "End of Session" -> then Stop?
@@ -1501,10 +1687,15 @@ if __name__ == "__main__":
         
         template_text = f"Client Name: {p_user}\n\nProcess Run: {p_proc}\n\nOther Notes:"
         
-        txt = tk.Text(dlg, width=50, height=15, font=("Arial", 10))
+        txt = tk.Text(dlg, width=50, height=13, font=("Arial", 10))
         txt.pack(padx=10, pady=5, expand=True, fill='both')
         txt.insert("1.0", template_text)
         txt.focus_set()
+        
+        # [NEW] Audio Toggle for Session
+        audio_var = tk.BooleanVar(value=process_runner.audio_enabled if process_runner else True)
+        chk_audio = tk.Checkbutton(dlg, text="Play Question Audio", variable=audio_var, bg='#f0f0f0')
+        chk_audio.pack(pady=5)
         
         user_choice = [None] # [None] or "start"
 
@@ -1513,6 +1704,11 @@ if __name__ == "__main__":
             # [FIX] Get text BEFORE destroy
             global pending_notes
             pending_notes = txt.get("1.0", "end-1c")
+            
+            # [NEW] Apply Audio Setting
+            if process_runner:
+                process_runner.audio_enabled = audio_var.get()
+                
             dlg.destroy()
             
         def on_cancel():
@@ -1537,21 +1733,24 @@ if __name__ == "__main__":
              # START LOGIC
              start_actual_recording()
              pending_rec = True
-             
              if prefill_process:
-                  # PROCESS START
-                  global active_process_name, active_process_data, process_step_idx, process_waiting_for_calib, process_waiting_for_input
-                  # Verify we have the data (should be cached)
-                  if process_runner:
+                   # PROCESS START
+                   reset_process_state()
+                   global active_process_name, active_process_data, process_step_idx, process_waiting_for_calib, process_waiting_for_input
+                   # Verify we have the data (should be cached)
+                   if process_runner:
                        # [NEW] Check for Pending Selection
 
                        if pending_assessment_selection:
                             print(f"[Process] Compiling dynamic steps with: {pending_assessment_selection}")
                             custom_steps = process_runner.compile_process_dynamic(prefill_process, pending_assessment_selection)
-                            
-                            # [NEW] Prepend Starting Questions
                             if process_runner.starting_questions:
-                                 custom_steps = process_runner.starting_questions + custom_steps
+                                 # [FIX] Deduplicate SOS from Prefix if redundant
+                                 prefix_steps = process_runner.starting_questions
+                                 if custom_steps and prefix_steps:
+                                      if custom_steps[0].get('text') == prefix_steps[-1].get('text'):
+                                           prefix_steps = prefix_steps[:-1]
+                                 custom_steps = prefix_steps + custom_steps
                                  
                             # Create temporary process data
                             active_process_name = prefill_process
@@ -1559,6 +1758,11 @@ if __name__ == "__main__":
                                 "name": prefill_process,
                                 "steps": custom_steps
                             }
+                            if 'txt_process_overlay' in ui_refs:
+                                display_item = next(iter(pending_assessment_selection.values())) if pending_assessment_selection else "Dynamic"
+                                ui_refs['txt_process_overlay'].set_text(f"PROCESS: {prefill_process} [{display_item}]\n(Waiting for Calibration)")
+                                ui_refs['txt_process_overlay'].set_visible(True)
+
                             # Clear after use
                             pending_assessment_selection = {}
                             
@@ -1566,10 +1770,6 @@ if __name__ == "__main__":
                             process_step_idx = 0
                             process_waiting_for_calib = True
                             process_waiting_for_input = False
-                            
-                            if 'txt_process_overlay' in ui_refs:
-                                 ui_refs['txt_process_overlay'].set_text(f"PROCESS: {prefill_process} [Dynamic]\n(Waiting for Calibration)")
-                                 ui_refs['txt_process_overlay'].set_visible(True)
                        else:
                             p_data = process_runner.get_process_data(prefill_process)
                             if p_data:
@@ -1578,9 +1778,19 @@ if __name__ == "__main__":
                                  # [NEW] Prepend Starting Questions (Create Copy to avoid mutation)
                                  if process_runner.starting_questions:
                                       print(f"[Process] Prepending {len(process_runner.starting_questions)} Starting Questions")
+                                      # [FIX] Deduplicate SOS from Prefix if redundant
+                                      prefix_steps = process_runner.starting_questions
+                                      
+                                      # Deduplicate: if first step of process is same as last step of prefix
+                                      if p_data['steps'] and prefix_steps:
+                                           first_p_text = p_data['steps'][0].get('text') if isinstance(p_data['steps'][0], dict) else process_runner.get_question_text(p_data['steps'][0])
+                                           last_pre_text = prefix_steps[-1].get('text')
+                                           if first_p_text == last_pre_text:
+                                                prefix_steps = prefix_steps[:-1]
+
                                       # Shallow copy dict, new list for steps
                                       p_copy = p_data.copy()
-                                      p_copy['steps'] = process_runner.starting_questions + p_data['steps']
+                                      p_copy['steps'] = prefix_steps + p_data['steps']
                                       active_process_data = p_copy
                                  else:
                                       active_process_data = p_data
@@ -1857,16 +2067,16 @@ if __name__ == "__main__":
     ax_blind.set_facecolor('#2b2b2b') 
     ax_blind.set_zorder(-5) 
     
-    rect_audio = [0.35, 0.28, 0.28, 0.25] 
+    rect_audio = [0.35, 0.20, 0.28, 0.32] 
     ax_audio_bg = create_panel_ax(rect_audio, "Audio Input Control")
     ui_refs['ax_audio_bg'] = ax_audio_bg
     
     # 3. Audio Input Control
-    ax_mic_lbl = reg_ax([rect_audio[0]+0.02, rect_audio[1]+0.16, rect_audio[2]-0.04, 0.06], settings_view_axes)
+    ax_mic_lbl = reg_ax([rect_audio[0]+0.02, rect_audio[1]+0.22, rect_audio[2]-0.04, 0.06], settings_view_axes)
     ax_mic_lbl.axis('off')
     ui_refs['text_mic_name'] = ax_mic_lbl.text(0, 0.5, "NO MIC", va="center", ha="left", fontsize=9, color='white')
     
-    r_meter = [rect_audio[0]+0.02, rect_audio[1]+0.11, rect_audio[2]-0.09, 0.02] 
+    r_meter = [rect_audio[0]+0.02, rect_audio[1]+0.16, rect_audio[2]-0.09, 0.02] 
     ax_level = reg_ax(r_meter, settings_view_axes)
     ax_level.set_xlim(0, 1.0); ax_level.set_ylim(-0.5, 0.5) 
     ax_level.set_xticks([]); ax_level.set_yticks([])
@@ -1874,16 +2084,85 @@ if __name__ == "__main__":
     ax_level.set_zorder(10) 
     bar_level = ax_level.barh([0], [0], color='green', height=1.0)
     
-    ax_lvl_txt = reg_ax([rect_audio[0]+rect_audio[2]-0.06, rect_audio[1]+0.10, 0.05, 0.04], settings_view_axes)
+    ax_lvl_txt = reg_ax([rect_audio[0]+rect_audio[2]-0.06, rect_audio[1]+0.15, 0.05, 0.04], settings_view_axes)
     ax_lvl_txt.axis('off')
     ui_refs['text_level'] = ax_lvl_txt.text(0.5, 0.5, "0%", ha='center', va='center', fontsize=8, color='cyan')
 
-    r_msel = [rect_audio[0]+0.02, rect_audio[1]+0.06, 0.20, 0.035]
+    r_msel = [rect_audio[0]+0.02, rect_audio[1]+0.10, 0.20, 0.035]
     ax_msel = reg_ax(r_msel, settings_view_axes)
     ax_msel.set_zorder(20) # [FIX] Ensure visible
     ui_refs['btn_select_mic'] = Button(ax_msel, 'Select Input...', color='#666666', hovercolor='#888888')
     ui_refs['btn_select_mic'].label.set_color('white')
     ui_refs['btn_select_mic'].on_clicked(lambda e: audio_handler.open_audio_select())
+
+    # --- VOICE & AUDIO PANEL ---
+    rect_voice = [0.05, 0.15, 0.28, 0.38] # [FIX] Taller panel
+    ax_voice_bg = create_panel_ax(rect_voice, "Voice & Audio")
+    ui_refs['ax_voice_bg'] = ax_voice_bg
+    
+    # Accent Selection
+    ax_voice_bg.text(0.05, 0.90, "Voice Accent:", transform=ax_voice_bg.transAxes, color='white', fontsize=10) # Higher Y
+    
+    accents = [
+        ("UK", "co.uk"), ("US", "com"), ("AU", "com.au"), ("IN", "co.in"),
+        ("CA", "ca"), ("IE", "ie"), ("NZ", "nz"), ("ZA", "za")
+    ]
+    accent_btns = {}
+    
+    def set_accent(tld):
+        if process_runner:
+            process_runner.voice_tld = tld
+            # Update colors
+            for b_tld, btn in accent_btns.items():
+                btn.color = '#444444' if b_tld != tld else '#0066aa'
+            save_config() # [NEW] Immediate Save
+            
+            # [NEW] Descriptive Voice Confirmation
+            name_map = {"co.uk": "UK", "com": "US", "com.au": "Australia", "co.in": "India", "ca": "Canada", "ie": "Ireland", "nz": "New Zealand", "za": "South Africa"}
+            disp_name = name_map.get(tld, tld)
+            speak_confirmation(f"Voice set to {disp_name} style.")
+            fig.canvas.draw_idle()
+    
+    for i, (label, tld) in enumerate(accents):
+        # Two rows of 4
+        row = i // 4
+        col = i % 4
+        # Increased spacing: rect_voice[1] + 0.26 down to 0.19
+        r_acc = [rect_voice[0] + 0.02 + (col * 0.065), rect_voice[1] + 0.26 - (row * 0.045), 0.06, 0.035]
+        ax_acc = reg_ax(r_acc, settings_view_axes)
+        btn = Button(ax_acc, label, color='#444444', hovercolor='#666666')
+        btn.label.set_color('white')
+        btn.label.set_fontsize(8) # [FIX] Prevent Clipping
+        btn.on_clicked(lambda e, t=tld: set_accent(t))
+        accent_btns[tld] = btn
+    
+    ui_refs['accent_btns'] = accent_btns
+    
+    # Gender Selection [NEW]
+    ax_voice_bg.text(0.05, 0.42, "Voice Gender:", transform=ax_voice_bg.transAxes, color='white', fontsize=10) # Adjusted Y
+    
+    gender_btns = {}
+    def set_gender(gen):
+        if process_runner:
+            process_runner.voice_gender = gen
+            for g, btn in gender_btns.items():
+                btn.color = '#444444' if g != gen else '#006688'
+            save_config() # [NEW] Immediate Save
+            speak_confirmation(f"Voice Gender changed to {gen}.")
+            fig.canvas.draw_idle()
+
+    for i, gen in enumerate(["Male", "Female"]):
+        r_gen = [rect_voice[0] + 0.02 + (i * 0.13), rect_voice[1] + 0.07, 0.12, 0.035] # Lower Y
+        ax_gen = reg_ax(r_gen, settings_view_axes)
+        btn = Button(ax_gen, gen, color='#444444', hovercolor='#666666')
+        btn.label.set_color('white')
+        btn.on_clicked(lambda e, g=gen: set_gender(g))
+        gender_btns[gen] = btn
+    
+    ui_refs['gender_btns'] = gender_btns
+    
+    # Audio Toggle Removed as per User Request (Selected at process run time)
+
 
     r_gain = [rect_audio[0] + 0.02, rect_audio[1] + 0.01, rect_audio[2] - 0.04, 0.03]
     ax_gain = reg_ax(r_gain, settings_view_axes)
@@ -2473,8 +2752,12 @@ if __name__ == "__main__":
                                     
                                     # [NEW] Process Hook
                                     if process_waiting_for_calib:
-                                        process_waiting_for_calib = False
-                                        advance_process_step()
+                                        # [FIX] Do NOT advance here if we are entering Phase 3 (Session Started)
+                                        # The hook should only fire once. We'll do it in Phase 3 if pending_rec was True,
+                                        # Or here if it wasn't.
+                                        if not pending_rec:
+                                            process_waiting_for_calib = False
+                                            advance_process_step()
 
                         elif calib_phase == 3:
                              msg = "SESSION STARTED"
@@ -2607,6 +2890,10 @@ if __name__ == "__main__":
     try:
         # [FIX] Custom Animation Loop (Force 50fps)
         timer = fig.canvas.new_timer(interval=20) 
+        
+        # [NEW] User Selection (Wait until all functions/UI are defined)
+        show_user_selection_dialog()
+
         timer.add_callback(update)
         timer.start()
 

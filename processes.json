@@ -1,118 +1,102 @@
 {
     "question_library": {
         "compare": {
-            "text": "And compare that to where you are now.",
-            "audio_file": "process_audio/Compare.wav"
+            "text": "And compare that to where you are now."
         },
         "aitaeat": {
-            "text": "And is there anything else about that?",
-            "audio_file": "process_audio/Aitaeat.wav"
+            "text": "And is there anything else about that?"
         },
         "aitae": {
-            "text": "And is there anything else?",
-            "audio_file": "process_audio/Aitae.wav"
+            "text": "And is there anything else?"
         },
         "atwch": {
-            "text": "And then what can happen?",
-            "audio_file": "process_audio/Atwch.wav"
+            "text": "And then what can happen?"
         },
         "awmygft": {
-            "text": "And want must you get from that.",
-            "audio_file": "process_audio/Awmygft.wav"
+            "text": "And want must you get from that."
         },
         "awcyx": {
-            "text": "And what could you [conditionalprocessing]?"
+            "text": "And what could you '[conditionalprocessing]'?"
         },
         "awcynx": {
-            "text": "And what could you not [conditionalprocessing]?"
+            "text": "And what could you not '[conditionalprocessing]'?"
+        },
+        "awecyx": {
+            "text": "And what else could you '[conditionalprocessing]'?"
+        },
+        "awecynx": {
+            "text": "And what else could you not '[conditionalprocessing]'?"
         },
         "awdykat": {
-            "text": "And what do you know about that?",
-            "audio_file": "process_audio/Awdykat.wav"
+            "text": "And what do you know about that?"
         },
         "awdyknaaot": {
-            "text": "And what do you know now about all of this?",
-            "audio_file": "process_audio/Awdyknaaot.wav"
+            "text": "And what do you know now about all of this?"
         },
         "awdykn": {
-            "text": "And what do you know now?",
-            "audio_file": "process_audio/Awdykn.wav"
+            "text": "And what do you know now?"
         },
         "awdtkay": {
-            "text": "And what does that know about you?",
-            "audio_file": "process_audio/Awdtkay.wav"
+            "text": "And what does that know about you?"
         },
         "awedykat": {
-            "text": "And what else do you know about that?",
-            "audio_file": "process_audio/Awedykat.wav"
+            "text": "And what else do you know about that?"
         },
         "awedtkay": {
-            "text": "And what else does that know about you?",
-            "audio_file": "process_audio/Awedtkay.wav"
+            "text": "And what else does that know about you?"
         },
         "awitddfx": {
             "text": "And what is the dictionary definition for [conditionalprocessing]?"
         },
         "awitdbwyknawys": {
-            "text": "And what is the difference between what you know now and when you started?",
-            "audio_file": "process_audio/Awitdbwyknawys.wav"
+            "text": "And what is the difference between what you know now and when you started?"
         },
         "awiydfx": {
             "text": "And what is your definition for [conditionalprocessing]?"
         },
         "awmymstdgfy": {
-            "text": "And what must you make sure that does get from you.",
-            "audio_file": "process_audio/Awmymstdgfy.wav"
+            "text": "And what must you make sure that does get from you."
         },
         "awmymstdngfy": {
-            "text": "And what must you make sure that does not get from you.",
-            "audio_file": "process_audio/Awmymstdngfy.wav"
+            "text": "And what must you make sure that does not get from you."
         },
         "awmyngft": {
-            "text": "And what must you not get from that.",
-            "audio_file": "process_audio/Awmyngft.wav"
+            "text": "And what must you not get from that."
         },
         "awwyltwon": {
-            "text": "And what would you like to work on now?",
-            "audio_file": "process_audio/Awwyltwon.wav"
+            "text": "And what would you like to work on now?"
         },
         "awaynirtt": {
-            "text": "And where are you now in relationship to that?",
-            "audio_file": "process_audio/Awaynirtt.wav"
+            "text": "And where are you now in relationship to that?"
         },
         "awaynwx": {
             "text": "And where are you now with [conditionalprocessing]?"
         },
         "now": {
-            "text": "And where are you now?",
-            "audio_file": "process_audio/Now.wav"
+            "text": "And where are you now?"
         },
         "awctcf": {
-            "text": "And where could that come from?",
-            "audio_file": "process_audio/Awctcf.wav"
+            "text": "And where could that come from?"
         },
         "beenelse": {
-            "text": "And where else have you been?",
-            "audio_file": "process_audio/BeenElse.wav"
+            "text": "And where else have you been?"
         },
         "beelse": {
-            "text": "And where else might you be.",
-            "audio_file": "process_audio/BeElse.wav"
+            "text": "And where else might you be."
         },
         "been": {
-            "text": "And where have you been?",
-            "audio_file": "process_audio/Been.wav"
+            "text": "And where have you been?"
         },
         "be": {
-            "text": "And where might you be.",
-            "audio_file": "process_audio/Be.wav"
+            "text": "And where might you be."
         },
         "sos": {
-            "text": "Start of session."
+            "text": "Start of session.",
+            "auto_advance": true
         },
         "end": {
             "text": "Thank you. The session is complete.",
-            "audio_file": "process_audio/Complete.wav"
+            "auto_advance": true
         }
     },
     "processes": [
@@ -259,6 +243,13 @@
                     "pattern": [
                         "awcyx",
                         "awcynx"
+                    ]
+                },
+                {
+                    "iterate_assessment": "conditionalprocessing",
+                    "pattern": [
+                        "awecyx",
+                        "awecynx"
                     ],
                     "repeat": -1
                 }

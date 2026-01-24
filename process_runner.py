@@ -1,9 +1,11 @@
+import asyncio
+import edge_tts
 import json
 import os
 import sys
 import hashlib
 import copy
-from gtts import gTTS
+from gtts import gTTS # Keeping for fallback if needed, though edge-tts is primary now
 from pathlib import Path
 
 # Suppress pygame welcome message
@@ -21,6 +23,11 @@ class ProcessRunner:
         self.starting_questions = [] # [NEW]
         self.closing_questions = [] 
         self.mixer_initialized = False
+        
+        # Audio Settings
+        self.voice_tld = "co.uk"    # Default accent
+        self.voice_gender = "Female" # [NEW] Default gender
+        self.audio_enabled = True   # Global toggle for current session
         
         # Initialize pygame mixer
         try:
@@ -262,6 +269,9 @@ class ProcessRunner:
 
     def prepare_step_audio(self, text, audio_file):
         """Pre-generates or locates audio for a step. Returns path or None."""
+        if not self.audio_enabled:
+            return None
+            
         # 1. Use existing audio file if valid
         if audio_file and os.path.exists(audio_file):
             return audio_file
@@ -269,7 +279,7 @@ class ProcessRunner:
         # 2. Fallback to TTS Generation
         if text:
             tts = TTSEngine()
-            return tts.generate_audio(text)
+            return tts.generate_audio(text, tld=self.voice_tld, gender=self.voice_gender)
             
         return None
 
@@ -333,28 +343,57 @@ class TTSEngine:
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
 
-    def generate_audio(self, text):
-        """Generates audio for text using gTTS, using cache if available."""
+    def generate_audio(self, text, tld="co.uk", gender="Female"):
+        """Generates audio for text using edge-tts (neural voices)."""
         if not text: return None
         
-        # Create hash filename
-        filename = hashlib.md5(text.encode()).hexdigest() + ".mp3" # gTTS saves as mp3
+        # Mapping for edge-tts voices
+        # Locale -> {Male: VoiceID, Female: VoiceID}
+        voice_map = {
+            "co.uk":  {"Male": "en-GB-ThomasNeural", "Female": "en-GB-SoniaNeural"},
+            "com":     {"Male": "en-US-AndrewMultilingualNeural", "Female": "en-US-JennyNeural"},
+            "com.au":  {"Male": "en-AU-WilliamMultilingualNeural", "Female": "en-AU-NatashaNeural"},
+            "co.in":   {"Male": "en-IN-PrabhatNeural", "Female": "en-IN-NeerjaNeural"},
+            "ca":      {"Male": "en-CA-LiamNeural", "Female": "en-CA-ClaraNeural"},
+            "ie":      {"Male": "en-IE-ConnorNeural", "Female": "en-IE-EmilyNeural"},
+            "nz":      {"Male": "en-NZ-MitchellNeural", "Female": "en-NZ-MollyNeural"},
+            "za":      {"Male": "en-ZA-LukeNeural", "Female": "en-ZA-LeahNeural"}
+        }
+        
+        voice_id = voice_map.get(tld, voice_map["co.uk"]).get(gender, "en-GB-SoniaNeural")
+        
+        # Create hash filename (include voice_id in hash to separate variants in cache)
+        cache_key = f"{text}|{voice_id}"
+        filename = hashlib.md5(cache_key.encode()).hexdigest() + ".mp3"
         file_path = os.path.join(self.cache_dir, filename)
         
         # Check cache
         if os.path.exists(file_path):
-            print(f"DEBUG: Using cached TTS: {file_path}", flush=True)
+            print(f"DEBUG: Using cached Edge-TTS [{voice_id}]: {file_path}", flush=True)
             return file_path
             
         try:
-            print("DEBUG: Requesting gTTS...", flush=True)
-            tts = gTTS(text=text, lang='en', tld='co.uk')
-            tts.save(file_path)
-            print("DEBUG: gTTS saved.", flush=True)
-            return file_path
+            print(f"DEBUG: Requesting Edge-TTS (Voice: {voice_id})...", flush=True)
+            
+            async def _generate():
+                communicate = edge_tts.Communicate(text, voice_id)
+                await communicate.save(file_path)
+            
+            asyncio.run(_generate())
+            
+            if os.path.exists(file_path):
+                print("DEBUG: Edge-TTS saved.", flush=True)
+                return file_path
         except Exception as e:
-            print(f"gTTS Request Failed: {e}", flush=True)
-            return None
+            print(f"Edge-TTS Request Failed: {e}. Falling back to gTTS...", flush=True)
+            # Fallback to gTTS if Edge-TTS fails
+            try:
+                tts = gTTS(text=text, lang='en', tld=tld if '.' in tld else 'co.uk')
+                tts.save(file_path)
+                return file_path
+            except: pass
+            
+        return None
 
 if __name__ == "__main__":
     print("Starting Process Runner v2.1 (Debug)...", flush=True)
