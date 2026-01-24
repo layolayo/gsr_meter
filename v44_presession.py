@@ -398,6 +398,7 @@ manual_viewer = ManualViewer(
         ("Pre-Session Processes", "manual/pre_session.md", "#1abc9c"),
         ("Training Processes", "manual/processes.md", "#d35400"),
         ("Method One", "manual/method_one.md", "#f39c12"),
+        ("Advanced Processes", "manual/advanced_processes.md", "#f39c12"),
         ("Technical & Troubleshooting", "manual/technical_guide.md", "#2980b9")
     ]
 )

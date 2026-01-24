@@ -6,6 +6,8 @@ We utilize two primary balanced processes for training:
 1.  **Positive Gain**: ARC Straightwire (Recovering Ability).
 2.  **Negative Release**: Integrity Processing (Removing Blocks).
 
+For how to use the automated system to run these, see [Using Automated Sessions](manual/advanced_processes.md).
+
 ---
 
 ## 1. Positive Gain: ARC Straightwire

@@ -41,6 +41,9 @@ Welcome to the digital training manual. This guide takes you from the basics of 
 *   [Integrity Processing](manual/processes.md): Handling withholds and dirty responses.
     *   Security Checks: finding the overt.
     *   Cleaning Reads: The procedure to get a clean response.
+*   [Using Automated Sessions](manual/advanced_processes.md): How to run the automated guidance system.
+    *   Starting a session.
+    *   Controls and Auto-Calibration.
 *   [Method One: Word Clearing](manual/method_one.md): Handling the barrier to study.
     *   "Do Birds Fly?": Command clearing drill.
     *   Assessment: Clearing a subject.

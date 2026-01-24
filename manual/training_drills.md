@@ -85,7 +85,7 @@ Perform the following actions in sequence until fluid:
 ---
 
 ## Drill 3a: The Pinch Test (First Interaction)
-**Purpose**: To prove that the meter registers physical pain and to conduct the first "Auditor -> Preclear" interaction.
+**Purpose**: To prove that the meter registers physical pain and to conduct the first "Therapist -> Client" interaction.
 
 **Position**:
 *   **Coach**: Holds the electrodes.
@@ -95,10 +95,13 @@ Perform the following actions in sequence until fluid:
 1.  **Command**: Student says *"Squeeze the cans."*
 2.  **Action**:
     *   Student reaches over and gives the Coach a sharp **Pinch** on the arm (or Coach simulates sudden pain).
-    *   Coach reacts physically to the pinch.
 3.  **Observe**:
     *   The graph should **Fall** (Drop) instantly at the moment of the pinch.
-4.  **Goal**: To realize that the graph is connected to the person's reality. A stimulus *here* causes a reaction *there*.
+4. **Action**: 
+    *   Student says "Recall the pinch" to the Coach.
+5. **Observe**:
+    * The graph should **Fall** (Drop) instantly at the moment of the recall.
+6. **Goal**: To realize that the graph is connected to the person's reality. A stimulus *here* causes a reaction *there*.
 
 
 ---
