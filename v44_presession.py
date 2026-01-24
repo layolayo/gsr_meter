@@ -351,11 +351,7 @@ def save_config():
         cfg = {
             'mic_name': audio_handler.current_mic_name if 'audio_handler' in globals() else "Default",
             'mic_gain': audio_handler.current_mic_gain if 'audio_handler' in globals() else 3.0,
-            'mic_rate': audio_handler.current_mic_rate if 'audio_handler' in globals() else None, 
-            # Global fallbacks if no user loaded
-            'gsr_center': GSR_CENTER_VAL,
-            'log_window': LOG_WINDOW_HEIGHT, 
-            'zoom_coeff': ZOOM_COEFFICIENT
+            'mic_rate': audio_handler.current_mic_rate if 'audio_handler' in globals() else None
         }
         
         # (Graph Visibility logic removed)
@@ -381,12 +377,6 @@ def load_config():
              audio_handler.current_mic_rate = cfg.get('mic_rate', None)
              print(f"[Config] Audio: {audio_handler.current_mic_name}, Rate: {audio_handler.current_mic_rate}, Gain: {audio_handler.current_mic_gain}")
 
-        # Restore GSR Settings
-        global GSR_CENTER_VAL, LOG_WINDOW_HEIGHT, ZOOM_COEFFICIENT
-        GSR_CENTER_VAL = float(cfg.get('gsr_center', 3.0))
-        LOG_WINDOW_HEIGHT = float(cfg.get('log_window', 0.3125))
-        ZOOM_COEFFICIENT = float(cfg.get('zoom_coeff', 1.0))
-        
         print(f"[Config] Loaded settings.")
     except Exception as e:
         print(f"[Config] Load Error: {e}")

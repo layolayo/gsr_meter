@@ -23,6 +23,7 @@ class SessionViewer:
         self.df = None
         self.time_index = None
         self.pattern_index = [] # [NEW] Stores (pattern, start_time) tuples
+        self.question_index = [] # [NEW] Stores (text, start_time) tuples
 
         self.audio_len_sec = 0
         self.notes_content = ""
@@ -60,6 +61,7 @@ class SessionViewer:
         self.pattern_vars = {} # Will hold BooleanVars
         self.pattern_checkboxes = {} # [NEW] Stores Checkbutton widgets
         self.mini_markers = [] # Store matplotlib lines
+        self.question_markers = [] # [NEW] Store matplotlib lines for questions
         
         # UI Vars
         self.var_track = tk.BooleanVar(value=False) 
@@ -124,7 +126,7 @@ class SessionViewer:
         tk.Label(right_panel, text="Pattern Highlights", font=('Arial', 10, 'bold'), bg='#222', fg='white').pack(pady=5)
         
         sel_frame = tk.Frame(right_panel, bg='#222')
-        sel_frame.pack(fill=tk.X, padx=10, pady=(0, 20)) # Added bottom padding
+        sel_frame.pack(fill=tk.X, padx=10, pady=(0, 5)) # Reduced bottom padding to move questions up
         
         for p in self.patterns:
             var = tk.BooleanVar(value=False)
@@ -137,6 +139,15 @@ class SessionViewer:
                                 command=self.update_minimap_markers)
             cb.pack(anchor=tk.W)
             self.pattern_checkboxes[p] = cb # [NEW] Store reference
+        
+        # [NEW] Question Selection Box (Spacing only, no line)
+        self.var_questions = tk.BooleanVar(value=True)
+        self.cb_questions = tk.Checkbutton(right_panel, text="Show Questions", variable=self.var_questions,
+                                           bg='#222', fg='gold', activebackground='#222', selectcolor='#111',
+                                           font=('Arial', 10, 'bold'), highlightthickness=0, borderwidth=0,
+                                           command=self.on_question_toggle)
+        self.cb_questions.pack(anchor=tk.W, padx=10, pady=(0, 5))
+
         plt.rcParams['toolbar'] = 'None' # [NEW] Hide Matplotlib navigation controls
         self.fig = plt.figure(figsize=(10, 8), dpi=100)
         self.fig.patch.set_facecolor('#222222') # [MOD] Matches UI background
@@ -303,6 +314,11 @@ class SessionViewer:
                                         fontsize=14, fontweight='bold', color='gray', 
                                         transform=self.ax.transAxes, zorder=90)
 
+        # [NEW] Question Text Overlay (Centered Top)
+        self.txt_question_overlay = self.ax.text(0.5, 0.90, "", ha='center', va='top',
+                                                 fontsize=12, fontweight='bold', color='gold',
+                                                 transform=self.ax.transAxes, zorder=100, wrap=True)
+
         # --- 2. Minimap ---
         self.ax_mini.clear()
         self.ax_mini.set_facecolor('#111111') 
@@ -461,6 +477,25 @@ class SessionViewer:
                     p_name = row['Pattern']
                     if pd.notna(p_name) and str(p_name).strip() != "":
                         self.pattern_index.append((str(p_name).strip(), float(row['Rel_Time'])))
+
+            # [NEW] Pre-calculate Question Index
+            self.question_index = []
+            if 'Notes' in self.df.columns:
+                # Find where questions start (labeled as STEP_n_START or CLOSING_n_START)
+                qs_mask = self.df['Notes'].notna() & self.df['Notes'].str.contains('_START', na=False)
+                qs_transitions = self.df[qs_mask]
+                
+                # We only want the first sample for each unique Note label
+                processed_notes = set()
+                for _, row in qs_transitions.iterrows():
+                    note = str(row['Notes'])
+                    if note not in processed_notes:
+                        processed_notes.add(note)
+                        # Extract Question_Text if available, else use Note
+                        q_text = row.get('Question_Text', note)
+                        if pd.isna(q_text) or str(q_text).strip() == "":
+                             q_text = note
+                        self.question_index.append((str(q_text).strip(), float(row['Rel_Time'])))
             
             # [NEW] Enable checkboxes only for patterns found in session
             found_pats = set(p for p, t in self.pattern_index)
@@ -569,69 +604,86 @@ class SessionViewer:
         if was_playing:
             self.start_playback()
 
+    def on_question_toggle(self):
+        """Update both minimap and main plot when questions are toggled"""
+        self.update_minimap_markers()
+        self.update_plot(self.get_current_time())
+
     def update_minimap_markers(self):
-        """Redraw pattern markers on the minimap using the pre-calculated index"""
+        """Redraw pattern and question markers on the minimap"""
+        # 1. Patterns
         for m in self.mini_markers:
             try: m.remove()
             except: pass
         self.mini_markers = []
         
-        if not self.pattern_index: return
-            
-        selected = [p for p, var in self.pattern_vars.items() if var.get()]
-        if not selected:
-            try: self.canvas.draw()
+        selected_pats = [p for p, var in self.pattern_vars.items() if var.get()]
+        if self.pattern_index and selected_pats:
+            for pat, t in self.pattern_index:
+                if pat in selected_pats:
+                    col = self.pattern_colors.get(pat, 'gray')
+                    l = self.ax_mini.axvline(x=t, color=col, lw=1.5, alpha=0.8, zorder=40)
+                    self.mini_markers.append(l)
+        
+        # 2. Questions [NEW]
+        for m in self.question_markers:
+            try: m.remove()
             except: pass
-            return
-            
-        for pat, t in self.pattern_index:
-            if pat in selected:
-                col = self.pattern_colors.get(pat, 'gray')
-                l = self.ax_mini.axvline(x=t, color=col, lw=1.5, alpha=0.8, zorder=40)
-                self.mini_markers.append(l)
-            
+        self.question_markers = []
+
+        if self.var_questions.get() and self.question_index:
+            for text, t in self.question_index:
+                 # Gold dashed lines for questions
+                 l = self.ax_mini.axvline(x=t, color='gold', lw=1, ls='--', alpha=0.6, zorder=35)
+                 self.question_markers.append(l)
+
         try: self.canvas.draw()
         except: pass
 
     def seek_to_pattern(self, direction):
-        """Jump to the next/prev pattern start using the cached index"""
-        if not self.pattern_index: return
-        
-        selected = [p for p, var in self.pattern_vars.items() if var.get()]
-        if not selected:
-             messagebox.showinfo("Note", "Select at least one pattern highlight first.")
-             return
-             
+        """Jump to the next/prev pattern or question start"""
         curr_t = self.get_current_time()
         
-        # Filter index for selected types
-        valid_starts = [t for pat, t in self.pattern_index if pat in selected]
+        # 1. Collect candidate timestamps
+        valid_starts = []
+        
+        # Patterns
+        selected_pats = [p for p, var in self.pattern_vars.items() if var.get()]
+        if self.pattern_index and selected_pats:
+            for pat, t in self.pattern_index:
+                if pat in selected_pats:
+                    valid_starts.append(t)
+        
+        # Questions [NEW]
+        if self.var_questions.get() and self.question_index:
+            for text, t in self.question_index:
+                valid_starts.append(t)
         
         if not valid_starts:
-             messagebox.showinfo("Note", "No instances of selected patterns found.")
+             messagebox.showinfo("Note", "Select a pattern or enable 'Show Questions' to navigate.")
              return
              
+        valid_starts.sort()
+        
         target = None
         if direction > 0:
              # Next: Find first start > curr_t + 3.1s (to skip the current 3s lead-in)
-             # This ensures we skip the pattern we are currently jump-positioned at.
              for t in valid_starts:
                  if t > curr_t + 3.1: 
                      target = t
                      break
         else:
-             # Prev: Find last start < curr_t + 2.9s (to find the start of previous patterns)
-             # Looking specifically for patterns before the current logical start window
+             # Prev: Find last start < curr_t + 2.9s 
              for t in reversed(valid_starts):
                  if t < curr_t + 2.9: 
                      target = t
                      break
              
         if target is not None:
-             # Jump to 3 seconds before the pattern
+             # Jump to 3 seconds before the event
              self.perform_seek(max(0, target - 3.0))
         else:
-             msg = "No more patterns forward." if direction > 0 else "No more patterns backward."
+             msg = "No more events forward." if direction > 0 else "No more events backward."
              messagebox.showinfo("End", msg)
 
     def seek_backward(self):
@@ -796,6 +848,19 @@ class SessionViewer:
                 delta_ta = target_ta - self.smooth_c_val
                 sign = "+" if delta_ta > 0 else ""
                 t_label.set_text(f"{sign}{delta_ta:.2f} TA")
+
+        # 3. [NEW] Update Question Overlay
+        if self.var_questions.get() and self.question_index:
+             # Find the most recent question asked (time <= current_time)
+             active_q = ""
+             for text, t in self.question_index:
+                  if t <= current_time:
+                       active_q = text
+                  else:
+                       break
+             self.txt_question_overlay.set_text(active_q)
+        else:
+             self.txt_question_overlay.set_text("")
 
 
         # [NEW] Update Pattern Display from CSV
