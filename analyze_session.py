@@ -131,7 +131,7 @@ def analyze_incidents(df):
         if inc: incidents.append(inc)
         
     # FINAL FILTER: Only Significant Patterns (as requested by user)
-    significant = ["BLOWDOWN", "LONG FALL", "LONG RISE", "ROCKET READ"]
+    significant = ["BLOWDOWN", "LONG FALL", "LONG RISE", "ROCKET READ", "TRANSIENT/BREATH"]
     incidents = [i for i in incidents if i['pattern'] in significant]
         
     return incidents
@@ -161,7 +161,36 @@ def refined_incident_record(df, indices, direction):
         abs_change = peak_ta - trough_ta
         start_time, end_time = peak_time, trough_time
         val_start, val_end = peak_ta, trough_ta
+
+        # [NEW] Recovery Analysis (Resilience Index & Breath Detection)
+        # Only applicable for DOWN movements (drops)
+        recovery_search_end = min(len(df)-1, trough_idx + 100) # search ~10s ahead
+        recovery_window = df.iloc[trough_idx:recovery_search_end]
+        
+        # T50 Recovery: Time to reach midway between trough and peak
+        midpoint = trough_ta + (abs_change / 2.0)
+        recovery_t50_idx = recovery_window[recovery_window['TA_Smooth'] >= midpoint].index.min()
+        resilience_t50 = None
+        if pd.notna(recovery_t50_idx):
+            resilience_t50 = df.loc[recovery_t50_idx, 'Seconds'] - trough_time
+            
+        # Breath/Transient Detection: Recovers to 85% of peak
+        # User defined: 3-5 seconds from peak -> trough -> peak again
+        breath_threshold = trough_ta + (abs_change * 0.85)
+        # Search up to 8s from peak to find the recovery peak
+        recovery_window_end = min(len(df)-1, peak_idx + 80) 
+        recovery_df = df.iloc[trough_idx:recovery_window_end]
+        
+        recovery_point_idx = recovery_df[recovery_df['TA_Smooth'] >= breath_threshold].index.min()
+        is_transient = False
+        if pd.notna(recovery_point_idx):
+            cycle_duration = df.loc[recovery_point_idx, 'Seconds'] - peak_time
+            if 2.5 <= cycle_duration <= 6.0: # Match 3-5s with slight buffer
+                is_transient = True
     else: # direction == "UP"
+        # Initiative defaults
+        resilience_t50 = None
+        is_transient = False
         # Search for local trough slightly before the pattern started
         trough_search_start = max(0, start_idx - 15)
         trough_search_end = min(len(df)-1, start_idx + 5)
@@ -209,6 +238,9 @@ def refined_incident_record(df, indices, direction):
         elif abs(unit_change) > 0.2 or abs_change >= 0.05: new_pattern = "SHORT RISE"
         else: new_pattern = "RISE"
 
+    if direction == "DOWN" and is_transient:
+        new_pattern = "TRANSIENT/BREATH"
+
     return {
         'pattern': new_pattern,
         'start_time': start_time,
@@ -220,7 +252,9 @@ def refined_incident_record(df, indices, direction):
         'ta_val_peak': peak_ta,
         'ta_val_trough': trough_ta,
         'val_start': val_start,
-        'val_end': val_end
+        'val_end': val_end,
+        'resilience_t50': resilience_t50 if direction == "DOWN" else None,
+        'is_transient': is_transient if direction == "DOWN" else False
     }
 
 def generate_detail_plot(df, inc):
@@ -305,46 +339,18 @@ def generate_session_synopsis(duration, net_ta, incidents, question_analysis):
     
     return f"{intro_paragraph}<h4>Key Observations</h4>{obs_list}"
 
-def generate_html_report(df, incidents, calib_time, session_path, question_analysis=None):
+def generate_html_report(df, incidents, calib_time, session_path, question_analysis=None, img_b64=None):
     """Generates a comprehensive HTML report using an external template."""
     
-    # 1. Prepare Main Plot
-    fig, ax = plt.subplots(figsize=(16, 10), dpi=100)
-    fig.patch.set_facecolor('white')
-    ax.plot(df['Seconds'], df['TA'], color='#004488', linewidth=0.7, label='GSR (TA Conductance)', alpha=0.9)
-    
-    if 'Motion' in df.columns:
-        m = df[df['Motion'] == 1]
-        if not m.empty: ax.scatter(m['Seconds'], m['TA'], color='#ff8800', s=4, label='Motion Lock', alpha=0.5)
-
-    if calib_time is not None:
-        ax.axvline(x=calib_time, color='red', linestyle='--', linewidth=2)
-        
     # User Request: Ignore PRE-calibration data for the report incidents
     if calib_time is not None:
         incidents = [inc for inc in incidents if inc['start_time'] >= calib_time]
 
     # Track top 5 events for summary
-    significant_drops = sorted([inc for inc in incidents if 'FALL' in inc['pattern'] or 'BLOWDOWN' in inc['pattern']], 
+    significant_drops = sorted([inc for inc in incidents if 'FALL' in inc['pattern'] or 'BLOWDOWN' in inc['pattern'] or 'TRANSIENT' in inc['pattern']], 
                               key=lambda x: x['abs_ta_drop'], reverse=True)[:5]
     significant_rises = sorted([inc for inc in incidents if 'RISE' in inc['pattern'] or 'ROCKET' in inc['pattern']], 
                               key=lambda x: x['abs_ta_drop'], reverse=True)[:5]
-
-    for inc in incidents:
-        is_down = inc['pattern'] in ['BLOWDOWN', 'LONG FALL']
-        is_up = inc['pattern'] in ['ROCKET READ', 'LONG RISE']
-        color = '#cc0000' if is_down else ('#0000cc' if is_up else '#666666')
-        ax.axvspan(inc['start_time'], inc['end_time'], color=color, alpha=0.15)
-
-    ax.set_title("GSR Session Detail View (Refined Analysis)")
-    ax.set_xlabel("Time (Seconds)")
-    ax.set_ylabel("TA (Conductance)")
-    ax.grid(True, linestyle=':', alpha=0.6)
-    
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close(fig)
-    img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
 
     # 2. Metrics & Highlights
     total_duration = df['Seconds'].max()
@@ -362,6 +368,10 @@ def generate_html_report(df, incidents, calib_time, session_path, question_analy
             q_end = q_start + qa['stats']['duration_proc']
             # Find all incidents that started within this question's window
             qa['incidents'] = [inc for inc in incidents if q_start <= inc['start_time'] < q_end]
+            
+            # Cognitive Latency: Time to first incident after question start
+            subsequent_incidents = [inc for inc in incidents if inc['start_time'] >= q_start]
+            qa['latency'] = (subsequent_incidents[0]['start_time'] - q_start) if subsequent_incidents else None
             
 
     def format_highlight(inc, idx):
@@ -499,6 +509,9 @@ def generate_html_report(df, incidents, calib_time, session_path, question_analy
             </div>
             """
         
+        resilience_val = inc['resilience_t50'] if inc['resilience_t50'] is not None else 0
+        resilience_str = f"{inc['resilience_t50']:.1f}s" if inc['resilience_t50'] is not None else "-"
+        
         row = f"""
         <tr class="incident-row" data-pattern="{inc['pattern']}">
             <td data-val="{inc['start_time']}">{timestamp} ({phase})</td>
@@ -507,6 +520,7 @@ def generate_html_report(df, incidents, calib_time, session_path, question_analy
             <td style="background:#fff9e6; font-weight:bold;" data-val="{inc['abs_ta_drop']}">{inc['abs_ta_drop']:.3f} TA</td>
             <td style="color:#666;" data-val="{inc['unit_drop']}">{inc['unit_drop']:.2f}U</td>
             <td data-val="{inc['duration']}">{inc['duration']:.2f}s</td>
+            <td data-val="{resilience_val}">{resilience_str}</td>
             <td data-val="{abs(inc['abs_ta_drop']/inc['duration'])}">{abs(inc['abs_ta_drop']/inc['duration']):.3f} TA/s</td>
             <td>{detail_html}</td>
         </tr>
@@ -535,16 +549,23 @@ def generate_html_report(df, incidents, calib_time, session_path, question_analy
                 max_p_drop = max(drops) if drops else 0
                 max_p_rise = max(rises) if rises else 0
             
+            latency_str = f"{qa['latency']:.2f}s" if qa['latency'] is not None else "N/A"
+            latency_color = "red" if qa['latency'] is not None and qa['latency'] > 1.5 else "teal"
+
             q_rows += f'''
             <div id="q_detail_{idx}" class="highlight-box" style="margin-bottom:20px; border-left: 5px solid gold;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div style="flex:1;">
                         <span style="color:gray; font-size:0.8em;">{timestamp} ({q_data['marker']})</span>
                         <h3 style="margin:5px 0;">{q_data['text']}</h3>
-                        <div class="summary-grid" style="grid-template-columns: repeat(5, 1fr); gap:10px; margin-top:10px;">
+                        <div class="summary-grid" style="grid-template-columns: repeat(6, 1fr); gap:10px; margin-top:10px;">
                             <div class="metric-card" style="padding:10px; border-left-color: gold;">
                                 <div style="font-size:0.8em; color:gray;">15s Response</div>
                                 <div style="font-size:1.0em; font-weight:bold;">{st['drop_15']:.3f} / +{st['rise_15']:.3f}</div>
+                            </div>
+                            <div class="metric-card" style="padding:10px; border-left-color: #d32f2f;">
+                                <div style="font-size:0.8em; color:gray;">Cognitive Latency</div>
+                                <div style="font-size:1.0em; font-weight:bold; color: {latency_color};">{latency_str}</div>
                             </div>
                             <div class="metric-card" style="padding:10px; border-left-color: #cc0000;">
                                 <div style="font-size:0.8em; color:gray;">Proc Total Drop</div>
@@ -604,9 +625,11 @@ def generate_html_report(df, incidents, calib_time, session_path, question_analy
 
     explanation_note = ""
     explanation_note += "<div class=\"explanation-box\">"
-    explanation_note += "<h3>Technical Audit Note: Peaks vs. Cumulative Totals</h3>"
-    explanation_note += "<p><strong>Standardization:</strong> All TA changes follow mathematical deltas (End - Start). Rises are <strong>Positive (+)</strong> and Drops are <strong>Negative (-)</strong>.</p>"
-    explanation_note += "<p><strong>Why is \"Total Rise\" often larger than any single peak?</strong> \"Proc Total Rise\" is the <em>sum of every upward movement</em> during the processing period. For example, if the client rises 0.1, drops, and rises 0.1 again, the Total Rise is 0.2, even though the max single rise was only 0.1.</p>"
+    explanation_note += "<h3>Advanced Psycho-Physiological Metrics</h3>"
+    explanation_note += "<p><strong>Resilience (T50):</strong> The time in seconds to regain 50% of lost conductance after a peak. Lower T50 indicates faster emotional recovery.</p>"
+    explanation_note += "<p><strong>Cognitive Latency:</strong> The delay between question delivery and the first physiological response. Fast reactions (<1s) are often subconscious, while slow reactions (>2s) may indicate cognitive filtering or repression.</p>"
+    explanation_note += "<p><strong>Momentum (Velocity) Map:</strong> The color ribbon at the bottom of the main chart shows the Rate of Change (TA/s). <strong>Red</strong> indicates high friction or rapid physiological movement, even if the total shift is small. <strong>Blue</strong> indicates stable processing.</p>"
+    explanation_note += "<p><strong>TRANSIENT/BREATH:</strong> Automatically detected breath artifacts. These are 3-5s drops that recover to >85% of their original baseline almost immediately.</p>"
     explanation_note += "</div>"
 
     # Load Template
@@ -783,6 +806,25 @@ def plot_session(df, session_path):
     fig, ax = plt.subplots(figsize=(16, 9), dpi=120)
     ax.plot(df['Seconds'], df['TA'], color='#004488', linewidth=0.7, alpha=0.9)
      
+    # [NEW] Momentum Heatmap Ribbon (Rate of Change)
+    # 0 = Blue (Stable), 0.25 TA/s = Red (High Friction)
+    df_m = df.copy()
+    diff_s = df_m['Seconds'].diff().fillna(0.1)
+    diff_s[diff_s == 0] = 0.1
+    df_m['Velocity_Raw'] = df_m['TA'].diff().abs().fillna(0) / diff_s
+    df_m['Velocity_Heat'] = df_m['Velocity_Raw'].rolling(window=30).mean().fillna(0)
+    norm = plt.Normalize(0, 0.25) 
+    cmap = plt.get_cmap('coolwarm')
+    
+    # Draw ribbon at the bottom 3% of the plot
+    step = max(2, len(df_m) // 250) 
+    for i in range(0, len(df_m)-step, step):
+        v = df_m['Velocity_Heat'].iloc[i]
+        ax.axvspan(df_m['Seconds'].iloc[i], df_m['Seconds'].iloc[min(len(df_m)-1, i+step)], 
+                   ymin=0, ymax=0.03, color=cmap(norm(v)), alpha=0.9)
+    
+    ax.text(df_m['Seconds'].min(), 0, " MOMENTUM (VELOCITY) ", color='white', fontsize=8, 
+            fontweight='bold', transform=ax.get_xaxis_transform(), va='bottom', backgroundcolor='#444')
 
     # Mark Questions [NEW]
     for qa in question_analysis:
@@ -808,9 +850,14 @@ def plot_session(df, session_path):
         ax.text(inc['start_time'], inc['val_start'], label, color=color, fontsize=8, rotation=45, fontweight='bold')
 
     plt.savefig(os.path.join(session_path, "analysis_result.png"))
-    #plt.savefig("latest_analysis.png")
+    
+    # Get base64 for HTML report
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
     plt.close(fig)
-    generate_html_report(df, incidents, calib_time, session_path, question_analysis)
+    
+    generate_html_report(df, incidents, calib_time, session_path, question_analysis, img_b64)
 
 if __name__ == "__main__":
     selected_dir = select_session()
