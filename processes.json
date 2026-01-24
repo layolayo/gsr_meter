@@ -13,7 +13,7 @@
             "text": "And then what can happen?"
         },
         "awmygft": {
-            "text": "And want must you get from that."
+            "text": "And want must you get from that?"
         },
         "awcyx": {
             "text": "And what could you '[conditionalprocessing]'?"
@@ -55,13 +55,13 @@
             "text": "And what is your definition for '[conditionalprocessing]'?"
         },
         "awmymstdgfy": {
-            "text": "And what must you make sure that does get from you."
+            "text": "And what must you make sure that does get from you?"
         },
         "awmymstdngfy": {
-            "text": "And what must you make sure that does not get from you."
+            "text": "And what must you make sure that does not get from you?"
         },
         "awmyngft": {
-            "text": "And what must you not get from that."
+            "text": "And what must you not get from that?"
         },
         "awwyltwon": {
             "text": "And what would you like to work on now?"
@@ -82,20 +82,20 @@
             "text": "And where else have you been?"
         },
         "beelse": {
-            "text": "And where else might you be."
+            "text": "And where else might you be?"
         },
         "been": {
             "text": "And where have you been?"
         },
         "be": {
-            "text": "And where might you be."
+            "text": "And where might you be?"
         },
         "sos": {
-            "text": "Start of session.",
+            "text": "Start of session",
             "auto_advance": true
         },
         "end": {
-            "text": "Thank you. The session is complete.",
+            "text": "Thank you, the session is complete",
             "auto_advance": true
         }
     },

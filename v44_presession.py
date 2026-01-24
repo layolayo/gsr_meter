@@ -44,7 +44,7 @@ GSR_CENTER_TARGET = 3.0 # [NEW] Target center for smooth dampening
 LOG_WINDOW_HEIGHT = 0.05   # [MOD] Much higher starting sensitivity (approx 13.3x linear)
 ZOOM_COEFFICIENT = 1.0     
 CALIB_PIVOT_TA = 2.0
-active_event_label = ""   
+active_event_label = [] # [FIX] Changed to list to prevent race conditions
 #latest_d_ta = 0.0 
 last_stable_window = 0.125 # [MOD]
 gsr_capture_queue = collections.deque(maxlen=100)
@@ -99,6 +99,10 @@ headset_on_head = False
 pattern_hold_until = 0.0
 
 # [NEW] Process State Globals
+def log_event(label):
+    # Atomic-like append to the shared list
+    active_event_label.append(str(label))
+
 process_runner = None
 active_process_name = None
 active_process_data = None
@@ -247,8 +251,12 @@ class GSRReader(threading.Thread):
                                  if writer_gsr:
                                       win = get_effective_window()
                                       global CALIB_PIVOT_TA, active_event_label, motion_lock_expiry, current_pattern, ta_accum, recording_start_time_obj
-                                      note = active_event_label
-                                      if note: active_event_label = ""
+                                      if active_event_label:
+                                           # Use temporary join and clear for thread safety
+                                           note = " | ".join(active_event_label)
+                                           active_event_label.clear()
+                                      else:
+                                           note = ""
                                       
                                       is_motion = 1 if time.time() < motion_lock_expiry else 0
                                       # Calc Elapsed
@@ -993,7 +1001,7 @@ if __name__ == "__main__":
         # [NEW] Process Input Hook
         elif process_waiting_for_input and event.key in [' ', 'enter']:
             process_waiting_for_input = False
-            active_event_label = "PROCESS_USER_ADVANCE"
+            log_event("PROCESS_USER_ADVANCE")
             
             if process_ending_phase:
                  finish_process_session()
@@ -1077,7 +1085,7 @@ if __name__ == "__main__":
         
         log_msg(f"Calibration Started.")
         global active_event_label
-        active_event_label = "CALIB_START"
+        log_event("CALIB_START")
         update_gsr_center(latest_gsr_ta)
            
     
@@ -1092,7 +1100,7 @@ if __name__ == "__main__":
     last_calib_ratio = 0.0
 
     def update_gsr_center(val, force_pivot=False, reason="System"):
-        global GSR_CENTER_VAL, GSR_CENTER_TARGET, ta_accum, calib_mode # [FIX] Added GSR_CENTER_TARGET
+        global GSR_CENTER_VAL, GSR_CENTER_TARGET, ta_accum, calib_mode, calib_phase # [FIX] Added calib_phase
         global motion_lock_expiry 
         global CALIB_PIVOT_TA
         
@@ -1102,17 +1110,16 @@ if __name__ == "__main__":
              if time.time() > motion_lock_expiry:
                  diff = GSR_CENTER_TARGET - val  # [MOD] Compare against Target
                  # [FIX] Noise Floor (0.001): Block micro-jitter
-                 if diff > 0.001 and not calib_mode: 
+                 if diff > 0.001 and (not calib_mode or calib_phase == 3): 
                      ta_accum += diff
                      print(f"[TA] Accumulating Drop: +{diff:.3f} (Total: {ta_accum:.2f})")
         
-        if not calib_mode:
-            if force_pivot:
-                 CALIB_PIVOT_TA = max(0.1, val)
-                 log_msg(f"Pivot FORCE Set to {CALIB_PIVOT_TA:.2f}")
-            else:
-                 if reason.startswith("User"):
-                      CALIB_PIVOT_TA = max(0.1, val)
+        if force_pivot:
+             CALIB_PIVOT_TA = max(0.1, val)
+             log_msg(f"Pivot FORCE Set to {CALIB_PIVOT_TA:.2f}")
+        elif not calib_mode:
+             if reason.startswith("User"):
+                  CALIB_PIVOT_TA = max(0.1, val)
         
         GSR_CENTER_TARGET = val # [MOD] Update Target only
         if val_txt: val_txt.set_text(f"TA SET: {val:.2f}")
@@ -1472,7 +1479,7 @@ if __name__ == "__main__":
         auto_adv = step.get('auto_advance', False)
         
         process_waiting_for_input = not auto_adv # If auto-adv, don't wait for input
-        active_event_label = f"{prefix}_{process_step_idx+1}_START"
+        log_event(f"{prefix}_{process_step_idx+1}_START")
         
         # Prepare for next
         process_step_idx += 1
@@ -2106,6 +2113,48 @@ if __name__ == "__main__":
     ui_refs['btn_select_mic'].label.set_color('white')
     ui_refs['btn_select_mic'].on_clicked(lambda e: audio_handler.open_audio_select())
 
+    # [NEW] Reset Audio Hardware Button
+    def reset_audio_hardware(event=None):
+        log_msg("Initiating AUDIO HARDWARE RESET...")
+        try:
+            # 1. Stop everything
+            if audio_handler:
+                audio_handler.stop_recording()
+                audio_handler.stop_playback()
+                if audio_handler.audio_stream:
+                    try: audio_handler.audio_stream.stop()
+                    except: pass
+                    audio_handler.audio_stream.close()
+                    audio_handler.audio_stream = None
+            
+            import sounddevice as sd
+            sd.stop()
+            
+            import pygame
+            if pygame.mixer.get_init():
+                pygame.mixer.music.stop()
+                pygame.mixer.quit()
+            
+            time.sleep(1.0) # Give OS time to release resources
+            
+            # 2. Re-Init
+            pygame.mixer.init()
+            if audio_handler:
+                audio_handler.selected_device_idx = None # Force re-probe
+                audio_handler.sync_audio_stream(target_view='settings')
+            
+            log_msg("AUDIO RESET COMPLETE.")
+            speak_confirmation("Audio hardware reset successful.")
+        except Exception as e:
+            log_msg(f"Reset Err: {e}")
+
+    r_reset = [rect_audio[0]+0.23, rect_audio[1]+0.10, 0.12, 0.035]
+    ax_reset = reg_ax(r_reset, settings_view_axes)
+    ui_refs['btn_reset_audio'] = Button(ax_reset, 'RESET HW', color='#880000', hovercolor='#aa0000')
+    ui_refs['btn_reset_audio'].label.set_color('white')
+    ui_refs['btn_reset_audio'].label.set_fontsize(8)
+    ui_refs['btn_reset_audio'].on_clicked(reset_audio_hardware)
+
     # --- VOICE & AUDIO PANEL ---
     rect_voice = [0.05, 0.15, 0.28, 0.38] # [FIX] Taller panel
     ax_voice_bg = create_panel_ax(rect_voice, "Voice & Audio")
@@ -2421,7 +2470,7 @@ if __name__ == "__main__":
                   # [REQ] Log Once per engagement
                   global motion_lock_active
                   if not motion_lock_active:
-                       active_event_label = "MOTION_LOCK_ENGAGED"
+                       log_event("MOTION_LOCK_ENGAGED")
                        motion_lock_active = True
                   
              # [NEW] Manage Motion Overlay & State
@@ -2632,8 +2681,8 @@ if __name__ == "__main__":
                         calib_phase, calib_min_ta, evt, msg, calib_base_ta, calib_start_time = phases
                         
                         # Handle specific Squeeze events if needed
-                        if evt and "DROP" in evt: active_event_label = f"SQUEEZE_{calib_step}_DROP"
-                        if evt and "RELEASE" in evt: active_event_label = f"SQUEEZE_{calib_step}_RELEASE"
+                        if evt and "DROP" in evt: log_event(f"SQUEEZE_{calib_step}_DROP")
+                        if evt and "RELEASE" in evt: log_event(f"SQUEEZE_{calib_step}_RELEASE")
                         
                         if calib_phase == 3:
                              # Wait for 1.5s stability
@@ -2645,7 +2694,7 @@ if __name__ == "__main__":
                                   calib_vals.append(total_drop)
                                   
                                   log_msg(f"Calib {calib_step}: Collected Drop={total_drop:.4f}")
-                                  active_event_label = f"SQUEEZE_{calib_step}_COLLECTED"
+                                  log_event(f"SQUEEZE_{calib_step}_COLLECTED")
                                  
                                   # [REQ] Log Median Logic at End of Step 3
                                   if calib_step == 3:
@@ -2665,7 +2714,7 @@ if __name__ == "__main__":
                                        LOG_WINDOW_HEIGHT = max(0.01, min(2.5, new_log_win))
                                        
                                        log_msg(f"Calibration Complete: Median Drop={median_drop:.4f} -> LogWindow={LOG_WINDOW_HEIGHT:.4f}")
-                                       active_event_label = "CALIB_COMPLETE_LOG"
+                                       log_event("CALIB_COMPLETE_LOG")
                                        
                                        # Update Display
                                        update_gsr_center(latest_gsr_ta, reason="Calib (Final)")
@@ -2707,7 +2756,7 @@ if __name__ == "__main__":
                                     calib_phase = 1
                                     calib_min_ta = latest_gsr_ta
                                     calib_start_time = time.time() # [REQ] Start Stability Timer
-                                    active_event_label = "BREATH_DROP"
+                                    log_event("BREATH_DROP")
                                     calib_step_start_time = time.time() # [NEW] Track total duration of this phase
                         elif calib_phase == 1:
                             msg = "CALIB 4/4: AND RELEASE..."
@@ -2735,7 +2784,7 @@ if __name__ == "__main__":
                                 calib_phase = 2
                                 calib_start_time = time.time()                                    
                                 update_gsr_center(latest_gsr_ta, reason="Calib (Breath)")
-                                active_event_label = f"BREATH_VERIFIED | Drop={total_drop:.4f}"
+                                log_event(f"BREATH_VERIFIED | Drop={total_drop:.4f}")
                                 
                         elif calib_phase == 2:
                             msg = "CALIB: COMPLETE!"
@@ -2749,6 +2798,12 @@ if __name__ == "__main__":
                                     # Enter Phase 3 just to show this message
                                     calib_phase = 3
                                     calib_start_time = time.time()
+                                    log_event("SESSION_STARTED")
+                                    log_msg("SESSION_STARTED")
+                                    
+                                    # [NEW] Set Pivot and Start Counter immediately when message appears
+                                    update_gsr_center(latest_gsr_ta, force_pivot=True, reason="Session Start")
+                                    if not counting_active: toggle_count(None)
                                 else:
                                     # If not recording, we are done
                                     if is_recording:
@@ -2759,7 +2814,7 @@ if __name__ == "__main__":
                                     update_gsr_center(latest_gsr_ta, force_pivot=True, reason="Calib (Complete)") # [REQ] Force Pivot Update
                                     if ovl: ovl.set_text("")
                                     log_msg("Calibration Complete")
-                                    active_event_label = "CALIB_COMPLETE"
+                                    log_event("CALIB_COMPLETE")
                                     
                                     # [NEW] Process Hook
                                     if process_waiting_for_calib:
@@ -2771,16 +2826,9 @@ if __name__ == "__main__":
 
                         elif calib_phase == 3:
                              msg = "SESSION STARTED"
-                             session_start_ta = latest_gsr_ta # [FIX] Capture TA once session actually starts
-                             if not counting_active: toggle_count(None)
-                             
                              if time.time() - calib_start_time > 2.0:
                                   calib_mode = False
-                                  update_gsr_center(latest_gsr_ta, force_pivot=True) # [REQ] Force Pivot Update
-                                  # if gsr_patterns: gsr_patterns.reset() # [FIX] Disabled
-                                  active_event_label = "SESSION_STARTED" # [REQ] Log Event
                                   if ovl: ovl.set_text("")
-                                  log_msg("Calibration Sequence Finished")
                                   
                                   # [NEW] Process Hook
                                   if process_waiting_for_calib:
@@ -2790,7 +2838,7 @@ if __name__ == "__main__":
                         elif calib_phase == 5:
                              # [NEW] Error Phase
                              msg = f"CALIBRATION FAILED\nRATIO: {last_calib_ratio:.2f} (0.30 - 0.65)"
-                             active_event_label = f"CALIB_FAILED - RATIO: {last_calib_ratio:.2f}" # Drop not avail here easily without saving
+                             log_event(f"CALIB_FAILED - RATIO: {last_calib_ratio:.2f}") # Drop not avail here easily without saving
                              if time.time() - calib_start_time > 2.0:
                                  # Restart
                                  calib_step = 1
@@ -3088,8 +3136,24 @@ if __name__ == "__main__":
                  audio_handler.stop_recording()
                  audio_handler.stop_playback()
                  if audio_handler.audio_stream:
+                      try: audio_handler.audio_stream.stop()
+                      except: pass
                       audio_handler.audio_stream.close()
              except: pass
+
+        # [NEW] Explicit Shutdown of Audio Libraries
+        try:
+             import sounddevice as sd
+             sd.stop()
+        except: pass
+        
+        try:
+             import pygame
+             if pygame.mixer.get_init():
+                  pygame.mixer.music.stop()
+                  pygame.mixer.quit()
+             pygame.quit()
+        except: pass
 
         # 5. Final Cleanup
         save_config() 

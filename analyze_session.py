@@ -77,8 +77,8 @@ def detect_calibration_time(df):
     """Finds the moment session started (after calibration)."""
     if 'Notes' not in df.columns:
         return None
-    # Priority 1: CALIB_COMPLETE or CALIB_END
-    mask = df['Notes'].str.contains("CALIB_COMPLETE|CALIB_END", na=False)
+    # Priority 1: session_started, CALIB_COMPLETE or CALIB_END
+    mask = df['Notes'].str.contains("SESSION_STARTED|CALIB_COMPLETE|CALIB_END", na=False)
     if mask.any():
         return df[mask]['Seconds'].iloc[0]
     # Priority 2: CALIB_START (Fallback)
