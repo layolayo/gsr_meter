@@ -57,10 +57,6 @@ class ProcessRunner:
                     # Store raw copy first
                     self.raw_processes[p['name']] = copy.deepcopy(p)
                     
-                    # Check if process needs compilation
-                    if 'structure' in p:
-                        compiled_steps = self.compile_process(p['structure'])
-                        p['steps'] = compiled_steps
                     
                     # [NEW] Check for mixed format in Steps (Convert keys to objects)
                     if 'steps' in p:
@@ -165,8 +161,6 @@ class ProcessRunner:
             return self.compile_process(struct, selection_map)
 
         # Standard compilation logic but using new selection map
-        if 'structure' in p:
-            p['steps'] = self.compile_process(p['structure'], selection_map)
             
         if 'steps' in p:
             norm_steps = []

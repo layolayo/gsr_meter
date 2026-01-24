@@ -5,8 +5,8 @@
             "voice_tld": "co.uk",
             "voice_gender": "Female",
             "audio_enabled": true,
-            "gsr_center": 6.428701495605996,
-            "log_window": 0.05,
+            "gsr_center": 6.4997824905033195,
+            "log_window": 0.047553612389617216,
             "zoom_coeff": 1.0,
             "name": "Matthew"
         },

@@ -109,25 +109,27 @@
         },
         {
             "name": "Process 4",
-            "structure": {
-                "pattern": [
-                    "now",
-                    "been",
-                    "compare",
-                    "be",
-                    "compare",
-                    "beenelse",
-                    "compare",
-                    "beelse",
-                    "compare",
-                    "beenelse",
-                    "compare",
-                    "beelse",
-                    "compare",
-                    "now"
-                ],
-                "repeat": 6
-            }
+            "steps": [
+                {
+                    "pattern": [
+                        "now",
+                        "been",
+                        "compare",
+                        "be",
+                        "compare",
+                        "beenelse",
+                        "compare",
+                        "beelse",
+                        "compare",
+                        "beenelse",
+                        "compare",
+                        "beelse",
+                        "compare"
+                    ],
+                    "repeat": 6
+                },
+                "now"
+            ]
         },
         {
             "name": "Issue Buster (Warp Drive)",

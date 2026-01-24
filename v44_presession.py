@@ -1630,7 +1630,7 @@ if __name__ == "__main__":
              ts_now = datetime.now().strftime('%H:%M:%S.%f')
              win = get_effective_window()
              log_ta = math.log10(max(0.01, session_start_ta))
-             writer_gsr.writerow([ts_now, "00:00:00.00000", f"{session_start_ta:.5f}", "0.00000", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", 0, f"{CALIB_PIVOT_TA:.3f}", "SESSION_START", "", f"{log_ta:.5f}", "", "", ""])
+             writer_gsr.writerow([ts_now, "00:00:00.00000", f"{session_start_ta:.5f}", "0.00000", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", 0, f"{CALIB_PIVOT_TA:.3f}", "RECORDING_STARTED", "", f"{log_ta:.5f}", "", "", ""])
              
              recording_start_time_obj = datetime.now()
              is_recording = True 
@@ -1846,6 +1846,20 @@ if __name__ == "__main__":
                  pass
              except Exception: pass # [FIX] Non-blocking refresh 
                           
+             # [NEW] Record Session End in CSV
+             try:
+                 if writer_gsr:
+                     ts_now = datetime.now().strftime('%H:%M:%S.%f')
+                     elapsed_str = "00:00:00.00000"
+                     if recording_start_time_obj:
+                         elapsed_val = (datetime.now() - recording_start_time_obj).total_seconds()
+                         elapsed_str = format_elapsed(elapsed_val)
+                     win = get_effective_window()
+                     log_ta = math.log10(max(0.01, latest_gsr_ta))
+                     writer_gsr.writerow([ts_now, elapsed_str, f"{latest_gsr_ta:.5f}", f"{ta_accum:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", 0, f"{CALIB_PIVOT_TA:.3f}", "RECORDING_ENDED", "", f"{log_ta:.5f}", "", "", ""])
+                     f_gsr.flush()
+             except Exception: pass
+
              audio_handler.stop_recording()
              audio_handler.sync_audio_stream(current_view) 
              
@@ -2751,13 +2765,13 @@ if __name__ == "__main__":
                                     if process_waiting_for_calib:
                                         # [FIX] Do NOT advance here if we are entering Phase 3 (Session Started)
                                         # The hook should only fire once. We'll do it in Phase 3 if pending_rec was True,
-                                        # Or here if it wasn't.
                                         if not pending_rec:
                                             process_waiting_for_calib = False
                                             advance_process_step()
 
                         elif calib_phase == 3:
                              msg = "SESSION STARTED"
+                             session_start_ta = latest_gsr_ta # [FIX] Capture TA once session actually starts
                              if not counting_active: toggle_count(None)
                              
                              if time.time() - calib_start_time > 2.0:
