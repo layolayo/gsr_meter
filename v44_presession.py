@@ -1626,6 +1626,12 @@ if __name__ == "__main__":
              writer_gsr = csv.writer(f_gsr)
              writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA Counter", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Notes", "Pattern", "Log_TA", "Question_Set", "Question_ID", "Question_Text"])
              
+             # [NEW] Record Session Start Note in CSV
+             ts_now = datetime.now().strftime('%H:%M:%S.%f')
+             win = get_effective_window()
+             log_ta = math.log10(max(0.01, session_start_ta))
+             writer_gsr.writerow([ts_now, "00:00:00.00000", f"{session_start_ta:.5f}", "0.00000", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", 0, f"{CALIB_PIVOT_TA:.3f}", "SESSION_START", "", f"{log_ta:.5f}", "", "", ""])
+             
              recording_start_time_obj = datetime.now()
              is_recording = True 
              
