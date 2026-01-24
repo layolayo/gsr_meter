@@ -73,6 +73,20 @@ def load_data(session_path):
         print(f"Error loading GSR: {e}")
         return None
 
+def detect_calibration_time(df):
+    """Finds the moment session started (after calibration)."""
+    if 'Notes' not in df.columns:
+        return None
+    # Priority 1: CALIB_COMPLETE or CALIB_END
+    mask = df['Notes'].str.contains("CALIB_COMPLETE|CALIB_END", na=False)
+    if mask.any():
+        return df[mask]['Seconds'].iloc[0]
+    # Priority 2: CALIB_START (Fallback)
+    mask = df['Notes'].str.contains("CALIB_START", na=False)
+    if mask.any():
+        return df[mask]['Seconds'].iloc[0]
+    return None
+
 def analyze_incidents(df):
 
     if 'Pattern' not in df.columns:
@@ -308,10 +322,69 @@ def generate_wave_plot(df, wz):
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
-def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
-    """Generates a comprehensive HTML report with refined incidents."""
+def generate_session_synopsis(duration, net_ta, incidents, wave_count, question_analysis):
+    """
+    Generates a narrative session overview in the voice of a professional session reviewer.
+    """
+    # 1. Determine Overall Tone
+    tone = ""
+    net_ta_val = float(net_ta)
     
-    # 1. Prepare Plot
+    if net_ta_val < -0.5:
+        tone = "The session demonstrates a significant overall release of tension, indicating a successful unburdening process."
+    elif net_ta_val > 0.5:
+        tone = "The session shows a trend of accumulating tension, suggesting the participant encountered difficult material that remained largely unresolved."
+    else:
+        tone = "The session remained relatively balanced, with minor fluctuations in tension but no dramatic overall shift."
+        
+    activity_level = ""
+    if len(incidents) > 15:
+        activity_level = "Reactivity was high, suggesting a volatile session with frequent emotional responses."
+    elif len(incidents) < 5:
+        activity_level = "Reactivity was notably low, indicating a calm or perhaps defended session."
+    else:
+        activity_level = "Reactivity was moderate, consistent with a standard processing session."
+        
+    flow_desc = ""
+    if wave_count > 3:
+        flow_desc = "The presence of multiple floating waves suggests deep, rhythmic processing and a good flow of release."
+    elif wave_count > 0:
+        flow_desc = "Some rhythmic processing was observed, indicating moments of flow."
+    else:
+        flow_desc = "The absence of floating waves suggests the session may have been more cognitive or rigid, lacking deep rhythmic release."
+
+    intro_paragraph = f"<p><strong>General Synopsis:</strong> This {int(duration/60)} minute session presented a distinct energetic profile. {tone} {activity_level} {flow_desc}</p>"
+
+    # 2. Key Observations
+    observations = []
+    
+    # Biggest Release
+    drops = [i for i in incidents if i['unit_drop'] > 1.0]
+    if drops:
+        max_drop = max(drops, key=lambda x: x['unit_drop'])
+        observations.append(f"<li><strong>Major Release:</strong> A significant release of {max_drop['unit_drop']:.1f} TA Units was observed at {int(max_drop['start_time']//60)}:{int(max_drop['start_time']%60):02}, characterized as a {max_drop['pattern']}.</li>")
+        
+    # Question Reactivity
+    if question_analysis:
+        # Most reactive question (Net Proc TA magnitude)
+        most_reactive = max(question_analysis, key=lambda x: abs(x['stats']['net_proc_ta']))
+        q_text = most_reactive['question']['text']
+        q_change = most_reactive['stats']['net_proc_ta']
+        change_type = "drop" if q_change < 0 else "rise"
+        observations.append(f"<li><strong>Highest Reactivity:</strong> The question '{q_text}' elicited the strongest response, resulting in a net {change_type} of {abs(q_change):.3f} TA.</li>")
+        
+    # Wave Pattern
+    if wave_count > 0:
+        observations.append(f"<li><strong>Rhythmic Flow:</strong> {wave_count} 'Floating Wave' events were detected, marking periods of sustained, rhythmic processing.</li>")
+
+    obs_list = "<ul>" + "".join(observations) + "</ul>" if observations else ""
+    
+    return f"{intro_paragraph}<h4>Key Observations</h4>{obs_list}"
+
+def generate_html_report(df, incidents, calib_time, session_path, wave_zones, question_analysis=None):
+    """Generates a comprehensive HTML report using an external template."""
+    
+    # 1. Prepare Main Plot
     fig, ax = plt.subplots(figsize=(16, 10), dpi=100)
     fig.patch.set_facecolor('white')
     ax.plot(df['Seconds'], df['TA'], color='#004488', linewidth=0.7, label='GSR (TA Conductance)', alpha=0.9)
@@ -323,7 +396,7 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
     if calib_time is not None:
         ax.axvline(x=calib_time, color='red', linestyle='--', linewidth=2)
         
-    # User Request: Ignore PRE-calibration data for the report
+    # User Request: Ignore PRE-calibration data for the report incidents
     if calib_time is not None:
         incidents = [inc for inc in incidents if inc['start_time'] >= calib_time]
 
@@ -351,10 +424,54 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
 
     # 2. Metrics & Highlights
     total_duration = df['Seconds'].max()
-    total_ta_count = df['TA'].iloc[0] - df['TA'].iloc[-1] 
+    # Safely handle empty data
+    if len(df) > 0:
+        total_ta_count = df['TA'].iloc[0] - df['TA'].iloc[-1] 
+    else:
+        total_ta_count = 0
     major_incidents_count = len(incidents)
     wave_event_count = len(wave_zones)
 
+    # 2.5 Associate patterns with questions [NEW]
+    if question_analysis:
+        for qa in question_analysis:
+            q_start = qa['question']['time']
+            q_end = q_start + qa['stats']['duration_proc']
+            # Find all incidents that started within this question's window
+            qa['incidents'] = [inc for inc in incidents if q_start <= inc['start_time'] < q_end]
+            
+    def format_highlight(inc, idx):
+        mins, secs = int(inc['start_time']) // 60, int(inc['start_time']) % 60
+    ax.axvspan(inc['start_time'], inc['end_time'], color=color, alpha=0.15)
+
+    ax.set_title("GSR Session Detail View (Refined Analysis)")
+    ax.set_xlabel("Time (Seconds)")
+    ax.set_ylabel("TA (Conductance)")
+    ax.grid(True, linestyle=':', alpha=0.6)
+    
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+    # 2. Metrics & Highlights
+    total_duration = df['Seconds'].max()
+    # Safely handle empty data
+    if len(df) > 0:
+        total_ta_count = df['TA'].iloc[0] - df['TA'].iloc[-1] 
+    else:
+        total_ta_count = 0
+    major_incidents_count = len(incidents)
+    wave_event_count = len(wave_zones)
+
+    # 2.5 Associate patterns with questions [NEW]
+    if question_analysis:
+        for qa in question_analysis:
+            q_start = qa['question']['time']
+            q_end = q_start + qa['stats']['duration_proc']
+            # Find all incidents that started within this question's window
+            qa['incidents'] = [inc for inc in incidents if q_start <= inc['start_time'] < q_end]
+            
     def format_highlight(inc, idx):
         mins, secs = int(inc['start_time']) // 60, int(inc['start_time']) % 60
         detail_id = f"detail_{idx}"
@@ -364,19 +481,93 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
             <span style="font-size:0.9em; color:#d32f2f;">{inc['abs_ta_drop']:.3f} TA</span> | {inc['unit_drop']:.1f}U
         </div>"""
 
+    def format_q_highlight(qa, label, val, color):
+        q_data = qa['question']
+        mins, secs = int(q_data['time']) // 60, int(q_data['time']) % 60
+        detail_id = f"q_detail_{question_analysis.index(qa)}"
+        return f"""
+        <div class="highlight-item" onclick="var el=document.getElementById('{detail_id}'); el.style.display='block'; el.scrollIntoView();">
+            <span style="color:gray; font-size:0.75em;">{mins:02}:{secs:02} {q_data['marker']}</span><br>
+            <strong>{label}:</strong> <span style="color:{color};">{val:.3f}</span><br>
+            <span style="font-size:0.8em; font-style:italic;">{q_data['text'][:40]}...</span>
+        </div>"""
+
     highlights_html = ""
+    # 1. Incident Highlights
     if significant_drops or significant_rises:
-        highlights_html = f"""
+        highlights_html += f"""
         <div class="section">
-            <h2>Session Audit Highlights (Top Peaks)</h2>
+            <h2>Peak Pattern Highlights (Incident Log)</h2>
             <div class="highlight-grid">
-                <div class="highlight-box">
-                    <h3 style="color:#cc0000; border-bottom:1px solid #ffcdd2;">Top Conductance Drops</h3>
+                <div class="highlight-box" style="border-top: 5px solid #cc0000;">
+                    <h3 style="color:#cc0000; margin-top:0;">Top Patterns: Drops</h3>
                     {"".join([format_highlight(inc, incidents.index(inc)) for inc in significant_drops]) if significant_drops else "None detected."}
                 </div>
-                <div class="highlight-box">
-                    <h3 style="color:#0000cc; border-bottom:1px solid #bbdefb;">Top Conductance Rises</h3>
+                <div class="highlight-box" style="border-top: 5px solid #0000cc;">
+                    <h3 style="color:#0000cc; margin-top:0;">Top Patterns: Rises</h3>
                     {"".join([format_highlight(inc, incidents.index(inc)) for inc in significant_rises]) if significant_rises else "None detected."}
+                </div>
+            </div>
+        </div>
+        """
+    
+    # 2. Question Highlights [NEW: Triple View - 15s, Net Proc, Max Pattern]
+    if question_analysis:
+        # 1. Top 15s Response (Immediate)
+        top_15_drop = sorted(question_analysis, key=lambda x: x['stats']['drop_15'])[:3]
+        top_15_rise = sorted(question_analysis, key=lambda x: x['stats']['rise_15'], reverse=True)[:3]
+        
+        # 2. Top Net Processing (Cumulative)
+        top_net_drop = sorted(question_analysis, key=lambda x: x['stats']['net_proc_ta'])[:3]
+        top_net_rise = sorted(question_analysis, key=lambda x: x['stats']['net_proc_ta'], reverse=True)[:3]
+
+        # 3. Top Cumulative Totals (Activity) [NEW]
+        top_total_drop = sorted(question_analysis, key=lambda x: x['stats']['total_drop_proc'])[:3]
+        top_total_rise = sorted(question_analysis, key=lambda x: x['stats']['total_rise_proc'], reverse=True)[:3]
+        
+        highlights_html += f"""
+        <div class="section">
+            <h2 style="margin-bottom:10px;">Question Audit Highlights</h2>
+            
+            <div style="margin-bottom:20px;">
+                <h3 style="color:#d4af37; border-bottom: 2px solid gold; margin-bottom:10px;">Top Initial Response (15s Window)</h3>
+                <div class="highlight-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="highlight-box" style="border-top: 5px solid #cc0000; background: #fff5f5;">
+                        <h4 style="color:#cc0000; margin-top:0;">Biggest Initial Drop</h4>
+                        {"".join([format_q_highlight(qa, "15s Drop", qa['stats']['drop_15'], "#cc0000") for qa in top_15_drop if qa['stats']['drop_15'] < -0.01]) or "None."}
+                    </div>
+                    <div class="highlight-box" style="border-top: 5px solid #00aa00; background: #f5fff5;">
+                        <h4 style="color:#00aa00; margin-top:0;">Biggest Initial Rise</h4>
+                        {"".join([format_q_highlight(qa, "15s Rise", qa['stats']['rise_15'], "#00aa00") for qa in top_15_rise if qa['stats']['rise_15'] > 0.01]) or "None."}
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <h3 style="color:#2e7d32; border-bottom: 2px solid #2e7d32; margin-bottom:10px;">Processing Trends (Net Shift)</h3>
+                <div class="highlight-grid" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="highlight-box" style="border-top: 5px solid #cc0000; background: #fff5f5;">
+                        <h4 style="color:#cc0000; margin-top:0;">Max Net Drop (Overall Shift)</h4>
+                        {"".join([format_q_highlight(qa, "Net", qa['stats']['net_proc_ta'], "#cc0000") for qa in top_net_drop if qa['stats']['net_proc_ta'] < -0.01]) or "None."}
+                    </div>
+                    <div class="highlight-box" style="border-top: 5px solid #00aa00; background: #f5fff5;">
+                        <h4 style="color:#00aa00; margin-top:0;">Max Net Rise (Overall Shift)</h4>
+                        {"".join([format_q_highlight(qa, "Net", qa['stats']['net_proc_ta'], "#00aa00") for qa in top_net_rise if qa['stats']['net_proc_ta'] > 0.01]) or "None."}
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 style="color:#666; border-bottom: 2px solid #666; margin-bottom:10px;">Processing Movement (Cumulative Totals)</h3>
+                <div class="highlight-grid" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="highlight-box" style="border-top: 5px solid #cc0000; background: #fff5f5;">
+                        <h4 style="color:#cc0000; margin-top:0;">Max Total Drop (Activity)</h4>
+                        {"".join([format_q_highlight(qa, "Sum Drop", qa['stats']['total_drop_proc'], "#cc0000") for qa in top_total_drop if qa['stats']['total_drop_proc'] < -0.01]) or "None."}
+                    </div>
+                    <div class="highlight-box" style="border-top: 5px solid #0000cc; background: #f5f5ff;">
+                        <h4 style="color:#0000cc; margin-top:0;">Max Total Rise (Activity)</h4>
+                        {"".join([format_q_highlight(qa, "Sum Rise", qa['stats']['total_rise_proc'], "#0000cc") for qa in top_total_rise if qa['stats']['total_rise_proc'] > 0.01]) or "None."}
+                    </div>
                 </div>
             </div>
         </div>
@@ -394,8 +585,17 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
         timestamp = f"{mins:02}:{secs:02}"
         phase = "PRE" if (calib_time is not None and inc['start_time'] < calib_time) else "POST"
         
+        # Find Question Context [NEW]
+        q_context = "N/A"
+        if question_analysis:
+            for qa in question_analysis:
+                q_start = qa['question']['time']
+                q_end = q_start + qa['stats']['duration_proc']
+                if q_start <= inc['start_time'] < q_end:
+                    q_context = qa['question']['marker']
+                    break
+
         detail_html = ""
-        # All 4 major patterns get detail plots
         detail_img_b64 = generate_detail_plot(df, inc)
         if detail_img_b64:
             detail_id = f"detail_{idx}"
@@ -410,6 +610,7 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
         row = f"""
         <tr class="incident-row" data-pattern="{inc['pattern']}">
             <td data-val="{inc['start_time']}">{timestamp} ({phase})</td>
+            <td>{q_context}</td>
             <td data-val="{inc['pattern']}">{inc['pattern']}</td>
             <td style="background:#fff9e6; font-weight:bold;" data-val="{inc['abs_ta_drop']}">{inc['abs_ta_drop']:.3f}</td>
             <td style="color:#666;" data-val="{inc['unit_drop']}">{inc['unit_drop']:.2f}U</td>
@@ -420,15 +621,102 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
         """
         incident_rows += row
 
-    explanation_note = f"""
-    <div class="explanation-box">
-        <h3>Technical Audit Note: Peaks vs. Real-time</h3>
-        <p>The <strong>TA Drop (Abs)</strong> represents the total change in conductance from the identified local peak to the local trough.</p>
-        <p><strong>Why "Units" might seem generous:</strong> Real-time detection uses a fixed 3-second sliding window. This post-session report uses a <strong>Peak-to-Trough</strong> algorithm which identifies the <em>entire</em> logical movement, often capturing more "drop" than a real-time window would show. "Units" are provided as a secondary visual reference (estimated as inches on a 5" dial).</p>
-    </div>
-    """
+    # 5. Question Analysis Section [NEW]
+    question_html = ""
+    if question_analysis:
+        q_rows = ""
+        for idx, qa in enumerate(question_analysis):
+            q_data = qa['question']
+            st = qa['stats']
+            mins, secs = int(q_data['time']) // 60, int(q_data['time']) % 60
+            timestamp = f"{mins:02}:{secs:02}"
+            
+            detail_id = f"q_detail_{idx}"
+            q_img = generate_question_plot(df, q_data, st)
+            
+            # Find largest pattern for display
+            max_p_drop = 0
+            max_p_rise = 0
+            if qa.get('incidents'):
+                drops = [inc['abs_ta_drop'] for inc in qa.get('incidents', []) if 'FALL' in inc['pattern'] or 'BLOWDOWN' in inc['pattern']]
+                rises = [inc['abs_ta_drop'] for inc in qa.get('incidents', []) if 'RISE' in inc['pattern'] or 'ROCKET' in inc['pattern']]
+                max_p_drop = max(drops) if drops else 0
+                max_p_rise = max(rises) if rises else 0
+            
+            q_rows += f'''
+            <div id="q_detail_{idx}" class="highlight-box" style="margin-bottom:20px; border-left: 5px solid gold;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="flex:1;">
+                        <span style="color:gray; font-size:0.8em;">{timestamp} ({q_data['marker']})</span>
+                        <h3 style="margin:5px 0;">{q_data['text']}</h3>
+                        <div class="summary-grid" style="grid-template-columns: repeat(5, 1fr); gap:10px; margin-top:10px;">
+                            <div class="metric-card" style="padding:10px; border-left-color: gold;">
+                                <div style="font-size:0.8em; color:gray;">15s Response</div>
+                                <div style="font-size:1.0em; font-weight:bold;">{st['drop_15']:.3f} / +{st['rise_15']:.3f}</div>
+                            </div>
+                            <div class="metric-card" style="padding:10px; border-left-color: #cc0000;">
+                                <div style="font-size:0.8em; color:gray;">Proc Total Drop</div>
+                                <div style="font-size:1.0em; font-weight:bold;">{st['total_drop_proc']:.3f}</div>
+                            </div>
+                            <div class="metric-card" style="padding:10px; border-left-color: #0000cc;">
+                                <div style="font-size:0.8em; color:gray;">Proc Total Rise</div>
+                                <div style="font-size:1.0em; font-weight:bold;">+{st['total_rise_proc']:.3f}</div>
+                            </div>
+                            <div class="metric-card" style="padding:10px; border-left-color: #2e7d32; background: {'#fff9f9' if st['net_proc_ta'] < 0 else '#f9fff9'};">
+                                <div style="font-size:0.8em; color:gray;">Proc Net TA</div>
+                                <div style="font-size:1.0em; font-weight:bold; color: {'#cc0000' if st['net_proc_ta'] < 0 else '#00aa00'};">{st['net_proc_ta']:+.3f}</div>
+                            </div>
+                            <div class="metric-card" style="padding:10px; border-left-color: gray;">
+                                <div style="font-size:0.8em; color:gray;">Proc Time</div>
+                                <div style="font-size:1.0em; font-weight:bold;">{st['duration_proc']:.1f}s</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="width:400px; margin-left:20px;">
+                        <img src="data:image/png;base64,{q_img}" style="width:100%; cursor:pointer;" onclick="toggleDetail('{detail_id}_full')">
+                    </div>
+                </div>
+                <div id="{detail_id}_full" class="detail-view" style="display:none; text-align:center;">
+                     <img src="data:image/png;base64,{q_img}" style="max-width:800px;">
+                </div>
+                
+            '''
+            if qa.get('incidents'):
+                inc_html = []
+                for i, inc in enumerate(qa["incidents"]):
+                        q_inc_id = f"q_{idx}_inc_{i}"
+                        # Reuse existing detail generator
+                        d_img = generate_detail_plot(df, inc)
+                        btn = ""
+                        div = ""
+                        if d_img:
+                            btn = f'<button class="btn-detail" style="font-size:0.75em; padding:2px 5px; margin-left:10px;" onclick="toggleDetail(\'{q_inc_id}\')">View Detail</button>'
+                            div = f'<div id="{q_inc_id}" class="detail-view" style="display:none;"><img src="data:image/png;base64,{d_img}" style="max-width:400px;"></div>'
+                        
+                        inc_html.append(f'<div><b>{inc["pattern"]}:</b> {inc["abs_ta_drop"]:.3f} TA ({inc["unit_drop"]:.1f} Units){btn}{div}</div>')
+                
+                q_rows += f'''
+                <div style="margin-top:10px; background:#f0f0f0; padding:10px; border-radius:4px;">
+                    <h5 style="margin:0 0 5px 0; color:#555;">Detected Patterns in this Window:</h5>
+                    {"".join(inc_html)}
+                </div>
+                ''' 
+            
+            q_rows += "</div>" # Close the main question box div
+            
+        question_html = "<div class=\"section\">"
+        question_html += "<h2 style=\"color:#d4af37; border-bottom: 2px solid gold; padding-bottom:5px;\">Question-by-Question Analysis</h2>"
+        question_html += "<p style=\"font-size: 0.9em; color: gray;\">Detailed response tracking from moment of delivery (15s window & total processing time until next Q).</p>"
+        question_html += q_rows
+        question_html += "</div>"
 
-    # 5. Floating Waves Table
+    explanation_note = ""
+    explanation_note += "<div class=\"explanation-box\">"
+    explanation_note += "<h3>Technical Audit Note: Peaks vs. Cumulative Totals</h3>"
+    explanation_note += "<p><strong>Standardization:</strong> All TA changes follow mathematical deltas (End - Start). Rises are <strong>Positive (+)</strong> and Drops are <strong>Negative (-)</strong>.</p>"
+    explanation_note += "<p><strong>Why is \"Total Rise\" often larger than any single peak?</strong> \"Proc Total Rise\" is the <em>sum of every upward movement</em> during the processing period. For example, if the client rises 0.1, drops, and rises 0.1 again, the Total Rise is 0.2, even though the max single rise was only 0.1.</p>"
+    explanation_note += "</div>"
+
     wave_rows = ""
     for idx, wz in enumerate(wave_zones):
         mins, secs = int(wz['start']) // 60, int(wz['start']) % 60
@@ -439,183 +727,214 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones):
         wave_img = generate_wave_plot(df, wz)
         detail_html = ""
         if wave_img:
-            detail_html = f"""
+            detail_html = f'''
             <button class="btn-detail" style="background:#2e7d32;" onclick="toggleDetail('{detail_id}')">View Waveform</button>
             <div id="{detail_id}" class="detail-view" style="display:none; border-color:#2e7d32;">
                 <img src="data:image/png;base64,{wave_img}" style="max-width:600px;">
                 <p style="font-size: 0.8em; color: #2e7d32;">Floating Wave: Rhythmic Release Pattern ({duration:.1f}s duration).</p>
             </div>
-            """
+            '''
             
-        wave_rows += f"""
-        <tr>
-            <td data-val="{wz['start']}">{timestamp}</td>
-            <td>Floating Wave</td>
-            <td data-val="{duration}">{duration:.1f}s</td>
-            <td>{detail_html}</td>
-        </tr>
-        """
+        dur_str = f"{duration:.1f}"
+        wave_rows += "<tr>"
+        wave_rows += "<td data-val=\"" + str(wz['start']) + "\">" + timestamp + "</td>"
+        wave_rows += "<td>Floating Wave</td>"
+        wave_rows += "<td data-val=\"" + str(duration) + "\">" + dur_str + "s</td>"
+        wave_rows += "<td>" + detail_html + "</td>"
+        wave_rows += "</tr>"
     
     waves_section = ""
     if wave_rows:
-        waves_section = f"""
+        waves_section = """
         <div class="section">
             <h2 style="color:#2e7d32;">Floating Wave Analysis (Release Indicator)</h2>
-            <p style="font-size: 0.9em; color: #555;">Detected rhythmic sine-wave oscillations indicating "Release" or "End Phenomenon".</p>
+            <p style="font-size: 0.9em; color: dimgray;">Detected rhythmic sine-wave oscillations indicating "Release" or "End Phenomenon".</p>
             <table>
-                <thead><tr><th onclick="sortTable(0, this)">Time ⇳</th><th>Type</th><th onclick="sortTable(2, this)">Duration ⇳</th><th>Detail</th></tr></thead>
-                <tbody>{wave_rows}</tbody>
+                <thead><tr><th onclick="sortTable(0, this)">Time &#8691;</th><th>Type</th><th onclick="sortTable(2, this)">Duration &#8691;</th><th>Detail</th></tr></thead>
+                <tbody>{}</tbody>
             </table>
+            <div class="explanation-box" style="border-left: 5px solid #2e7d32;">
+                <strong>Metric Note:</strong> Floating waves are distinctly different from typical falls. They represent a state of 'undulating release', often seen when a subject is processing deep relief or detaching from a charge.
+            </div>
         </div>
-        """
+        """.format(wave_rows)
 
-    html_content = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>GSR Refined Analysis Report - {os.path.basename(session_path)}</title>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }}
-            .header {{ background: #004488; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }}
-            .section {{ background: white; padding: 25px; margin-bottom: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }}
-            .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }}
-            .highlight-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }}
-            .highlight-box {{ background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 6px; }}
-            .highlight-item {{ padding: 8px; margin-bottom: 5px; background: #fafafa; border-radius: 4px; cursor: pointer; transition: background 0.2s; }}
-            .highlight-item:hover {{ background: #f0f0f0; }}
-            .metric-card {{ background: #eef4fb; padding: 15px; border-radius: 6px; border-left: 5px solid #004488; }}
-            .metric-value {{ font-size: 24px; font-weight: bold; color: #004488; }}
-            img {{ width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; }}
-            table {{ width: 100%; border-collapse: collapse; }}
-            th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
-            th {{ background-color: #f8f9fa; cursor: pointer; }}
-            th:hover {{ background-color: #e9ecef; }}
-            .filter-container {{ margin-bottom: 15px; background: #eee; padding: 15px; border-radius: 4px; }}
-            .btn-detail {{ padding: 4px 8px; cursor: pointer; background: #004488; color: white; border: none; border-radius: 4px; }}
-            .detail-view {{ margin-top: 10px; border: 1px solid #ccc; padding: 10px; background: #fff; }}
-            .explanation-box {{ background: #fffde7; border-left: 5px solid #fbc02d; padding: 15px; margin-top: 20px; font-size: 0.9em; }}
-        </style>
-        <script>
-            function filterPatterns() {{
-                const val = document.getElementById('patternFilter').value;
-                const rows = document.querySelectorAll('.incident-row');
-                rows.forEach(row => {{
-                    if (val === 'ALL' || row.dataset.pattern === val) {{
-                        row.style.display = '';
-                    }} else {{
-                        row.style.display = 'none';
-                    }}
-                }});
-            }}
-            function toggleDetail(id) {{
-                const el = document.getElementById(id);
-                el.style.display = (el.style.display === 'none') ? 'block' : 'none';
-            }}
-            function sortTable(n, header) {{
-                let table = header.closest("table");
-                let rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
-                switching = true;
-                dir = "asc";
-                while (switching) {{
-                    switching = false;
-                    rows = table.rows;
-                    for (i = 1; i < (rows.length - 1); i++) {{
-                        shouldSwitch = false;
-                        x = rows[i].getElementsByTagName("TD")[n];
-                        y = rows[i + 1].getElementsByTagName("TD")[n];
-                        
-                        // Use data-val if available, otherwise innerText
-                        let xVal = x.dataset.val ? parseFloat(x.dataset.val) : x.innerText.toLowerCase();
-                        let yVal = y.dataset.val ? parseFloat(y.dataset.val) : y.innerText.toLowerCase();
-                        
-                        if (typeof xVal === 'string') {{
-                             if (dir == "asc") {{ if (xVal > yVal) {{ shouldSwitch = true; break; }} }}
-                             else if (dir == "desc") {{ if (xVal < yVal) {{ shouldSwitch = true; break; }} }}
-                        }} else {{
-                             if (dir == "asc") {{ if (xVal > yVal) {{ shouldSwitch = true; break; }} }}
-                             else if (dir == "desc") {{ if (xVal < yVal) {{ shouldSwitch = true; break; }} }}
-                        }}
-                    }}
-                    if (shouldSwitch) {{
-                        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-                        switching = true;
-                        switchcount ++;
-                    }} else {{
-                        if (switchcount == 0 && dir == "asc") {{
-                            dir = "desc";
-                            switching = true;
-                        }}
-                    }}
-                }}
-            }}
-        </script>
-    </head>
-    <body>
-        <div class="header"><h1>GSR Refined Session Report</h1><p>{os.path.basename(session_path)}</p></div>
-        <div class="section">
-            <h2>Refined Summary</h2>
-            <div class="summary-grid">
-                <div class="metric-card"><div class="metric-value">{int(total_duration // 60)}:{int(total_duration % 60):02}</div><div class="metric-label">Duration</div></div>
-                <div class="metric-card"><div class="metric-value">{total_ta_count:.3f}</div><div class="metric-label">Net TA Change</div></div>
-                <div class="metric-card"><div class="metric-value">{major_incidents_count}</div><div class="metric-label">Significant Incidents</div></div>
-                <div class="metric-card"><div class="metric-value">{wave_event_count}</div><div class="metric-label">Floating Waves (Release)</div></div>
-            </div>
-        </div>
-        {highlights_html}
-        {waves_section}
-        <div class="section"><h2>GSR Peak-to-Trough Analysis Graph</h2><img src="data:image/png;base64,{img_b64}"></div>
-        <div class="section">
-            <h2>Incident log (Audit View - Click Headers to Sort)</h2>
-            <div class="filter-container">
-                <label for="patternFilter">Filter by Pattern: </label>
-                <select id="patternFilter" onchange="filterPatterns()">
-                    <option value="ALL">-- All Patterns --</option>
-                    {filter_options}
-                </select>
-            </div>
-            <table>
-                <thead><tr>
-                    <th onclick="sortTable(0, this)">Time (Phase) ⇳</th>
-                    <th onclick="sortTable(1, this)">Type ⇳</th>
-                    <th onclick="sortTable(2, this)">TA Change (Abs) ⇳</th>
-                    <th onclick="sortTable(3, this)">Est. Units ⇳</th>
-                    <th onclick="sortTable(4, this)">Duration ⇳</th>
-                    <th onclick="sortTable(5, this)">Velocity ⇳</th>
-                    <th>Detail</th>
-                </tr></thead>
-                <tbody>{incident_rows if incident_rows else '<tr><td colspan="7">No major incidents (LONG FALL, BLOWDOWN, LONG RISE, ROCKET READ) detected.</td></tr>'}</tbody>
-            </table>
-            {explanation_note}
-        </div>
-        <div class="footer" style="text-align:center; padding:20px; color:#888;">
-            * Analysis filtered for significance: LONG FALL/RISE > 1.5 Units. BLOWDOWN/ROCKET > 2.0 U/s.
-        </div>
-    </body>
-    </html>
-    """
+    # Load Template
+    try:
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "report_template.html")
+        with open(template_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+    except Exception as e:
+        print(f"Error loading report template: {e}")
+        return
+
+    # Prepare Data for Injection
+    session_name = os.path.basename(session_path)
+    duration_str = f"{int(total_duration // 60)}:{int(total_duration % 60):02}"
+    net_ta_str = f"{total_ta_count:.3f}"
     
-    #report_path = os.path.abspath("session_report.html")
+    # 1. Inject Simple Metrics
+    html_content = html_content.replace("{{ SESSION_NAME }}", session_name)
+    html_content = html_content.replace("{{ DURATION }}", duration_str)
+    html_content = html_content.replace("{{ NET_TA_CHANGE }}", net_ta_str)
+    html_content = html_content.replace("{{ INCIDENT_COUNT }}", str(major_incidents_count))
+    html_content = html_content.replace("{{ WAVE_COUNT }}", str(wave_event_count))
+    
+    # 2. Inject Sections
+    # 2. Inject Sections
+    synopsis_html = generate_session_synopsis(total_duration, total_ta_count, incidents, wave_event_count, question_analysis)
+    html_content = html_content.replace("{{ SESSION_OVERVIEW }}", synopsis_html) 
+    
+    html_content = html_content.replace("{{ HIGHLIGHTS_SECTION }}", highlights_html)
+    html_content = html_content.replace("{{ QUESTION_SECTION }}", question_html)
+    html_content = html_content.replace("{{ WAVES_SECTION }}", waves_section)
+    html_content = html_content.replace("{{ MAIN_IMAGE_B64 }}", img_b64)
+    
+    # 3. Inject Tables & Filters
+    html_content = html_content.replace("{{ FILTER_OPTIONS }}", filter_options)
+    html_content = html_content.replace("{{ INCIDENT_ROWS }}", incident_rows if incident_rows else '<tr><td colspan="8">No major incidents detected.</td></tr>')
+    html_content = html_content.replace("{{ EXPLANATION_NOTE }}", explanation_note)
+    
+    # Write Final Report
     for path in [os.path.join(session_path, "session_report.html")]:
-        with open(path, "w") as f: f.write(html_content)
+        with open(path, "w", encoding="utf-8") as f: f.write(html_content)
     
     print(f"Refined Report generated at: {session_path}")
 
+def extract_questions(df):
+    """Identifies all question start points and their associated text."""
+    questions = []
+    if 'Notes' not in df.columns:
+        return questions
+
+    # Filter for _START markers in Notes
+    qs_mask = df['Notes'].notna() & df['Notes'].str.contains('_START', na=False)
+    qs_transitions = df[qs_mask]
+    
+    processed_notes = set()
+    for _, row in qs_transitions.iterrows():
+        note = str(row['Notes'])
+        if note not in processed_notes:
+            processed_notes.add(note)
+            q_text = row.get('Question_Text', note)
+            if pd.isna(q_text) or str(q_text).strip() == "":
+                q_text = note
+            
+            questions.append({
+                'time': float(row['Seconds']),
+                'marker': note,
+                'text': str(q_text).strip()
+            })
+    return questions
+
+def analyze_question_response(df, q_data, next_q_time=None):
+    """Calculates metrics for a specific question window."""
+    start_time = q_data['time']
+    # 15s Window
+    win_15_end = min(df['Seconds'].max(), start_time + 15)
+    mask_15 = (df['Seconds'] >= start_time) & (df['Seconds'] <= win_15_end)
+    view_15 = df[mask_15]
+    
+    # Full Processing Window
+    proc_end = next_q_time if next_q_time else df['Seconds'].max()
+    mask_proc = (df['Seconds'] >= start_time) & (df['Seconds'] <= proc_end)
+    view_proc = df[mask_proc]
+    
+    # [NEW] Cumulative TA Movement Analysis with Noise Floor
+    if not view_proc.empty:
+        # Calculate differences between consecutive points
+        diffs = view_proc['TA'].diff().dropna()
+        
+        # Noise Floor (0.0001): lowered to capture gradual movements [FIX]
+        # This ensures that even slow 0.14 rises aren't filtered out by ADC-jitter-protection
+        noise_floor = 0.0001
+        
+        # Total Drop: sum of all decreases (negative diffs)
+        total_drop = diffs[diffs < -noise_floor].sum()
+        # Total Rise: sum of all increases (positive diffs)
+        total_rise = diffs[diffs > noise_floor].sum()
+        
+        # Net Change: Final - Initial (Positive if Rise, Negative if Drop)
+        net_proc_ta = view_proc['TA'].iloc[-1] - view_proc['TA'].iloc[0]
+    else:
+        total_drop = total_rise = net_proc_ta = 0
+
+    stats = {
+        'start_ta': view_15['TA'].iloc[0] if not view_15.empty else 0,
+        'min_15_ta': view_15['TA'].min() if not view_15.empty else 0,
+        'max_15_ta': view_15['TA'].max() if not view_15.empty else 0,
+        'net_proc_ta': net_proc_ta,
+        'total_drop_proc': total_drop,
+        'total_rise_proc': total_rise,
+        'duration_proc': (proc_end - start_time)
+    }
+    
+    # Standardize 15s Window signs (End-Start logic for deltas)
+    if not view_15.empty:
+        # Drop is the delta from start to the lowest point (will be negative)
+        stats['drop_15'] = view_15['TA'].min() - stats['start_ta']
+        # Rise is the delta from start to the highest point (will be positive)
+        stats['rise_15'] = view_15['TA'].max() - stats['start_ta']
+    else:
+        stats['drop_15'] = stats['rise_15'] = 0
+        
+    return stats
+
+def generate_question_plot(df, q_data, stats):
+    """Generates a graph for the full processing interval (until next question)."""
+    start_time = q_data['time']
+    end_time = min(df['Seconds'].max(), start_time + stats['duration_proc'])
+    
+    mask = (df['Seconds'] >= start_time - 2) & (df['Seconds'] <= end_time + 2)
+    detail_df = df[mask]
+    
+    if detail_df.empty: return None
+
+    fig, ax = plt.subplots(figsize=(8, 4), dpi=80)
+    ax.plot(detail_df['Seconds'], detail_df['TA'], color='#004488', linewidth=1.5)
+    
+    # Highlight the initial 15s window specifically within the larger plot
+    win_15_end = min(df['Seconds'].max(), start_time + 15)
+    ax.axvspan(start_time, win_15_end, color='gold', alpha=0.1, label='15s Response')
+    # Full processing window background
+    ax.axvspan(start_time, end_time, color='gray', alpha=0.05)
+    ax.axvline(x=start_time, color='gold', linestyle='--', alpha=0.8, label='Q Asked')
+    
+    ax.set_title(f"Q: {q_data['text'][:50]}...")
+    ax.set_ylabel("TA")
+    ax.grid(True, linestyle=':', alpha=0.6)
+    
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    plt.close(fig)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
+
 def plot_session(df, session_path):
     """Generates the high-detail GSR analysis plot with refined annotations."""
-    calib_time = None
-    if 'Notes' in df.columns:
-        # Priority 1: CALIB_COMPLETE or CALIB_END
-        calib_ends = df[df['Notes'].str.contains("CALIB_COMPLETE|CALIB_END", na=False)]
-        if not calib_ends.empty:
-            calib_time = calib_ends['Seconds'].iloc[0]
-        else:
-            # Priority 2: CALIB_START (Fallback)
-            calib_pts = df[df['Notes'].str.contains("CALIB_START", na=False)]
-            if not calib_pts.empty: calib_time = calib_pts['Seconds'].iloc[0]
+    calib_time = detect_calibration_time(df)
             
     # Professional Analytics
     incidents, wave_zones = analyze_incidents(df)
+    
+    # Filter by calibration time [REQ]
+    if calib_time is not None:
+        incidents = [inc for inc in incidents if inc['start_time'] >= calib_time]
+        wave_zones = [wz for wz in wave_zones if wz['start'] >= calib_time]
+
+    # [NEW] Question-by-Question Analysis
+    questions = extract_questions(df)
+    # Filter questions by calibration time [REQ]
+    if calib_time is not None:
+        questions = [q for q in questions if q['time'] >= calib_time]
+        
+    question_analysis = []
+    for i, q in enumerate(questions):
+        next_t = questions[i+1]['time'] if i+1 < len(questions) else None
+        res_stats = analyze_question_response(df, q, next_t)
+        question_analysis.append({
+            'question': q,
+            'stats': res_stats
+        })
 
     fig, ax = plt.subplots(figsize=(16, 9), dpi=120)
     ax.plot(df['Seconds'], df['TA'], color='#004488', linewidth=0.7, alpha=0.9)
@@ -624,6 +943,12 @@ def plot_session(df, session_path):
     for wz in wave_zones:
         ax.axvspan(wz['start'], wz['end'], color='#00ff00', alpha=0.1, label='Floating Wave' if wz == wave_zones[0] else "")
         ax.text(wz['start'], ax.get_ylim()[0], ' WAVE ', color='green', fontsize=7, rotation=90)
+
+    # Mark Questions [NEW]
+    for qa in question_analysis:
+        q = qa['question']
+        ax.axvline(x=q['time'], color='gold', linestyle='--', alpha=0.5)
+        # ax.text(q['time'], ax.get_ylim()[1], f" Q: {q['marker']}", color='#aa8800', fontsize=7, rotation=90)
 
     if 'Motion' in df.columns:
         m = df[df['Motion'] == 1]
@@ -645,7 +970,7 @@ def plot_session(df, session_path):
     plt.savefig(os.path.join(session_path, "analysis_result.png"))
     #plt.savefig("latest_analysis.png")
     plt.close(fig)
-    generate_html_report(df, incidents, calib_time, session_path, wave_zones)
+    generate_html_report(df, incidents, calib_time, session_path, wave_zones, question_analysis)
 
 if __name__ == "__main__":
     selected_dir = select_session()

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GSR Refined Analysis Report - {{ SESSION_NAME }}</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }
+        .header { background: #004488; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+        .section { background: white; padding: 25px; margin-bottom: 20px; border-radius: 0 0 8px 8px; border: 1px solid #ddd; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .highlight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .highlight-box { background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 6px; }
+        .highlight-item { padding: 8px; margin-bottom: 5px; background: #fafafa; border-radius: 4px; cursor: pointer; transition: background 0.2s; }
+        .highlight-item:hover { background: #f0f0f0; }
+        .metric-card { background: #eef4fb; padding: 15px; border-radius: 6px; border-left: 5px solid #004488; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #004488; }
+        img { width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; cursor: pointer; }
+        th:hover { background-color: #e9ecef; }
+        .filter-container { margin-bottom: 15px; background: #eee; padding: 15px; border-radius: 4px; }
+        .btn-detail { padding: 4px 8px; cursor: pointer; background: #004488; color: white; border: none; border-radius: 4px; }
+        .detail-view { margin-top: 10px; border: 1px solid #ccc; padding: 10px; background: #fff; }
+        .explanation-box { background: #fffde7; border-left: 5px solid #fbc02d; padding: 15px; margin-top: 20px; font-size: 0.9em; }
+    </style>
+    <script>
+        function filterPatterns() {
+            const val = document.getElementById('patternFilter').value;
+            const rows = document.querySelectorAll('.incident-row');
+            rows.forEach(row => {
+                if (val === 'ALL' || row.dataset.pattern === val) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        function toggleDetail(id) {
+            const el = document.getElementById(id);
+            el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+        }
+        function sortTable(n, header) {
+            let table = header.closest("table");
+            let rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+            switching = true;
+            dir = "asc";
+            while (switching) {
+                switching = false;
+                rows = table.rows;
+                for (i = 1; i < (rows.length - 1); i++) {
+                    shouldSwitch = false;
+                    x = rows[i].getElementsByTagName("TD")[n];
+                    y = rows[i + 1].getElementsByTagName("TD")[n];
+                    
+                    let xVal = x.dataset.val ? parseFloat(x.dataset.val) : x.innerText.toLowerCase();
+                    let yVal = y.dataset.val ? parseFloat(y.dataset.val) : y.innerText.toLowerCase();
+                    
+                    if (typeof xVal === 'string') {
+                         if (dir == "asc") { if (xVal > yVal) { shouldSwitch = true; break; } }
+                         else if (dir == "desc") { if (xVal < yVal) { shouldSwitch = true; break; } }
+                    } else {
+                         if (dir == "asc") { if (xVal > yVal) { shouldSwitch = true; break; } }
+                         else if (dir == "desc") { if (xVal < yVal) { shouldSwitch = true; break; } }
+                    }
+                }
+                if (shouldSwitch) {
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                    switchcount ++;
+                } else {
+                    if (switchcount == 0 && dir == "asc") {
+                        dir = "desc";
+                        switching = true;
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="header"><h1>GSR Refined Session Report</h1><p>{{ SESSION_NAME }}</p></div>
+    <div class="section">
+        <h2>Session Overview</h2>
+        {{ SESSION_OVERVIEW }}
+    </div>
+    <div class="section">
+        <h2>Refined Summary</h2>
+        <div class="summary-grid">
+            <div class="metric-card"><div class="metric-value">{{ DURATION }}</div><div class="metric-label">Duration</div></div>
+            <div class="metric-card"><div class="metric-value">{{ NET_TA_CHANGE }}</div><div class="metric-label">Net TA Change</div></div>
+            <div class="metric-card"><div class="metric-value">{{ INCIDENT_COUNT }}</div><div class="metric-label">Significant Incidents</div></div>
+            <div class="metric-card"><div class="metric-value">{{ WAVE_COUNT }}</div><div class="metric-label">Floating Waves (Release)</div></div>
+        </div>
+    </div>
+    
+    {{ HIGHLIGHTS_SECTION }}
+
+    {{ QUESTION_SECTION }}
+
+    {{ WAVES_SECTION }}
+
+    <div class="section"><h2>Full Session GSR Conductance Map</h2><img src="data:image/png;base64,{{ MAIN_IMAGE_B64 }}"></div>
+    
+    <div class="section">
+        <h2>Incident log (Audit View - Click Headers to Sort)</h2>
+        <div class="filter-container">
+            <label for="patternFilter">Filter by Pattern: </label>
+            <select id="patternFilter" onchange="filterPatterns()">
+                <option value="ALL">-- All Patterns --</option>
+                {{ FILTER_OPTIONS }}
+            </select>
+        </div>
+        <table>
+            <thead><tr>
+                <th onclick="sortTable(0, this)">Time (Phase) &#8691;</th>
+                <th onclick="sortTable(1, this)">Question &#8691;</th>
+                <th onclick="sortTable(2, this)">Type &#8691;</th>
+                <th onclick="sortTable(3, this)">TA Change (Abs) &#8691;</th>
+                <th onclick="sortTable(4, this)">Est. Units &#8691;</th>
+                <th onclick="sortTable(5, this)">Duration &#8691;</th>
+                <th onclick="sortTable(6, this)">Velocity &#8691;</th>
+                <th>Detail</th>
+            </tr></thead>
+            <tbody>{{ INCIDENT_ROWS }}</tbody>
+        </table>
+        {{ EXPLANATION_NOTE }}
+    </div>
+    <div class="footer" style="text-align:center; padding:20px; color:#888;">
+        * Analysis filtered for significance: LONG FALL/RISE > 1.5 Units. BLOWDOWN/ROCKET > 2.0 U/s.
+    </div>
+</body>
+</html>
