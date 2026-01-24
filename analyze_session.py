@@ -134,41 +134,7 @@ def analyze_incidents(df):
     significant = ["BLOWDOWN", "LONG FALL", "LONG RISE", "ROCKET READ"]
     incidents = [i for i in incidents if i['pattern'] in significant]
         
-    # 4. Floating Wave Detector (Rhythmic Oscillations)
-    # High-pass filter (simple detrend)
-    df['TA_Detrend'] = df['TA'] - df['TA'].rolling(window=30).mean()
-    # Check for rhythmic peaks (0.2Hz - 1.0Hz)
-    # At 10Hz, this is one peak every 10-50 samples
-    df['Is_Wave'] = False
-    for start in range(0, len(df)-50, 10):
-        window = df['TA_Detrend'].iloc[start:start+50]
-        # Identify local extrema
-        peaks = (window > window.shift(1)) & (window > window.shift(-1))
-        peak_count = peaks.sum()
-        if 2 <= peak_count <= 5: # Typical for 5 seconds at these frequencies
-            # Check for regularity (approximate)
-            peak_indices = np.where(peaks)[0]
-            if len(peak_indices) >= 3:
-                intervals = np.diff(peak_indices)
-                if np.std(intervals) / np.mean(intervals) < 0.4: # Relaxed CV (0.3 -> 0.4) to catch more End Phenomena
-                    df.loc[start:start+50, 'Is_Wave'] = True
-
-    wave_zones = []
-    current_wave = None
-    for i, row in df.iterrows():
-        if row['Is_Wave']:
-            if current_wave is None:
-                current_wave = {'start': row['Seconds'], 'end': row['Seconds']}
-            else:
-                current_wave['end'] = row['Seconds']
-        else:
-            if current_wave:
-                if current_wave['end'] - current_wave['start'] > 4.0: # At least 2 full cycles
-                    wave_zones.append(current_wave)
-                current_wave = None
-    if current_wave: wave_zones.append(current_wave)
-
-    return incidents, wave_zones
+    return incidents
 
 def refined_incident_record(df, indices, direction):
     """
@@ -279,7 +245,7 @@ def generate_detail_plot(df, inc):
     sh_color = 'red' if 'FALL' in inc['pattern'] or 'BLOWDOWN' in inc['pattern'] else 'blue'
     ax.axvspan(inc['start_time'], inc['end_time'], color=sh_color, alpha=0.1)
     
-    ax.set_title(f"Detail: {inc['pattern']} ({inc['unit_drop']:.2f} Units)")
+    ax.set_title(f"Detail: {inc['pattern']} ({inc['abs_ta_drop']:.3f} TA)")
     ax.set_xlabel("Seconds")
     ax.set_ylabel("TA")
     ax.grid(True, linestyle=':', alpha=0.6)
@@ -289,99 +255,57 @@ def generate_detail_plot(df, inc):
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode('utf-8')
 
-def generate_wave_plot(df, wz):
-    """Generates a detail plot for a Floating Wave (High-resolution detrended view)."""
-    start_time = max(0, wz['start'] - 2)
-    end_time = min(df['Seconds'].max(), wz['end'] + 2)
-    
-    mask = (df['Seconds'] >= start_time) & (df['Seconds'] <= end_time)
-    detail_df = df[mask]
-    
-    if detail_df.empty: return None
-
-    # We show the detrended TA to emphasize the sine wave
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True, dpi=80)
-    
-    # Plot 1: Raw TA
-    ax1.plot(detail_df['Seconds'], detail_df['TA'], color='#004488', linewidth=1.5, label='Raw TA')
-    ax1.set_title(f"Floating Wave (Release Index)")
-    ax1.set_ylabel("TA")
-    ax1.grid(True, linestyle=':', alpha=0.6)
-    
-    # Plot 2: Detrended TA (Frequency View)
-    if 'TA_Detrend' in detail_df.columns:
-        ax2.plot(detail_df['Seconds'], detail_df['TA_Detrend'], color='#00aa00', linewidth=1.5, label='Detrended')
-        ax2.axhline(y=0, color='black', alpha=0.3)
-        ax2.set_ylabel("Detrended")
-        ax2.set_xlabel("Seconds")
-        ax2.grid(True, linestyle=':', alpha=0.6)
-    
-    plt.tight_layout()
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode('utf-8')
-
-def generate_session_synopsis(duration, net_ta, incidents, wave_count, question_analysis):
+def generate_session_synopsis(duration, net_ta, incidents, question_analysis):
     """
-    Generates a narrative session overview in the voice of a professional session reviewer.
+    Generates a narrative session overview in the voice of an expert physiological data reviewer.
     """
-    # 1. Determine Overall Tone
-    tone = ""
+    # 1. Net Tonic Shift (Baseline Trend)
+    # net_ta is passed as total_ta_count (start_ta - end_ta)
     net_ta_val = float(net_ta)
-    
-    if net_ta_val < -0.5:
-        tone = "The session demonstrates a significant overall release of tension, indicating a successful unburdening process."
-    elif net_ta_val > 0.5:
-        tone = "The session shows a trend of accumulating tension, suggesting the participant encountered difficult material that remained largely unresolved."
+    if net_ta_val > 0.5:
+        tone = "The session exhibited a pronounced tonic decline in conductance, reflecting profound emotional resolution and the successful downregulation of the autonomic nervous system."
+    elif net_ta_val < -0.5:
+        tone = "The session was characterized by a distinct tonic elevation, indicative of sustained autonomic arousal and potential cognitive-emotional dissonance that remained partially unresolved."
     else:
-        tone = "The session remained relatively balanced, with minor fluctuations in tension but no dramatic overall shift."
+        tone = "Tonic stability prevailed throughout the session, suggesting a state of physiological equilibrium with only minor autonomic perturbations."
         
+    # 2. Phasic Reactivity (Incident Activity)
     activity_level = ""
     if len(incidents) > 15:
-        activity_level = "Reactivity was high, suggesting a volatile session with frequent emotional responses."
+        activity_level = "Phasic reactivity was markedly elevated, signifying a highly volatile session with frequent episodes of acute sympathetic activation."
     elif len(incidents) < 5:
-        activity_level = "Reactivity was notably low, indicating a calm or perhaps defended session."
+        activity_level = "The session demonstrated notably low phasic reactivity, suggesting a state of physiological stillness or, potentially, a cognitive-emotional defensive posture."
     else:
-        activity_level = "Reactivity was moderate, consistent with a standard processing session."
+        activity_level = "Phasic reactivity was moderate and controlled, consistent with a standard processing session characterized by targeted emotional engagement."
         
-    flow_desc = ""
-    if wave_count > 3:
-        flow_desc = "The presence of multiple floating waves suggests deep, rhythmic processing and a good flow of release."
-    elif wave_count > 0:
-        flow_desc = "Some rhythmic processing was observed, indicating moments of flow."
-    else:
-        flow_desc = "The absence of floating waves suggests the session may have been more cognitive or rigid, lacking deep rhythmic release."
+    intro_paragraph = f"<p><strong>General Synopsis:</strong> In this {int(duration/60)} minute session, the participant's physiological profile revealed a nuanced interplay of tension and release. {tone} {activity_level}</p>"
 
-    intro_paragraph = f"<p><strong>General Synopsis:</strong> This {int(duration/60)} minute session presented a distinct energetic profile. {tone} {activity_level} {flow_desc}</p>"
-
-    # 2. Key Observations
+    # 4. Key Observations
     observations = []
     
-    # Biggest Release
-    drops = [i for i in incidents if i['unit_drop'] > 1.0]
-    if drops:
-        max_drop = max(drops, key=lambda x: x['unit_drop'])
-        observations.append(f"<li><strong>Major Release:</strong> A significant release of {max_drop['unit_drop']:.1f} TA Units was observed at {int(max_drop['start_time']//60)}:{int(max_drop['start_time']%60):02}, characterized as a {max_drop['pattern']}.</li>")
+    significant_incidents = [i for i in incidents if 'FALL' in i['pattern'] or 'BLOWDOWN' in i['pattern']]
+    if significant_incidents:
+        max_drop_inc = max(significant_incidents, key=lambda x: x['abs_ta_drop'])
+        if max_drop_inc['abs_ta_drop'] > 0.05:
+            observations.append(f"<li><strong>Significant Phasic Release:</strong> A profound drop of {max_drop_inc['abs_ta_drop']:.3f} TA occurred at {int(max_drop_inc['start_time']//60)}:{int(max_drop_inc['start_time']%60):02}, characterized as a {max_drop_inc['pattern']}. This represents a pivotal zenith of sympathetic discharge.</li>")
         
-    # Question Reactivity
+    # Highest Cognitive-Emotional Load (Question Reactivity)
     if question_analysis:
-        # Most reactive question (Net Proc TA magnitude)
+        # Most reactive question (Max net_proc_ta magnitude)
         most_reactive = max(question_analysis, key=lambda x: abs(x['stats']['net_proc_ta']))
         q_text = most_reactive['question']['text']
-        q_change = most_reactive['stats']['net_proc_ta']
-        change_type = "drop" if q_change < 0 else "rise"
-        observations.append(f"<li><strong>Highest Reactivity:</strong> The question '{q_text}' elicited the strongest response, resulting in a net {change_type} of {abs(q_change):.3f} TA.</li>")
+        q_change = most_reactive['stats']['net_proc_ta'] # (End TA - Start TA)
         
-    # Wave Pattern
-    if wave_count > 0:
-        observations.append(f"<li><strong>Rhythmic Flow:</strong> {wave_count} 'Floating Wave' events were detected, marking periods of sustained, rhythmic processing.</li>")
-
-    obs_list = "<ul>" + "".join(observations) + "</ul>" if observations else ""
+        if q_change < -0.05:
+            observations.append(f"<li><strong>Maximum Processing Yield:</strong> The stimulus '{q_text[:60]}...' elicited the most significant net resolution, resulting in a tonic decline of {abs(q_change):.3f} TA.</li>")
+        elif q_change > 0.05:
+            observations.append(f"<li><strong>Cognitive-Emotional Peak:</strong> The question '{q_text[:60]}...' induced the highest level of autonomic arousal, with a net elevation of {q_change:.3f} TA, highlighting a primary area of internal conflict.</li>")
+        
+    obs_list = "<ul>" + "".join(observations) + "</ul>" if observations else "<p>No significant phasic deviations were observed outside of baseline variance.</p>"
     
     return f"{intro_paragraph}<h4>Key Observations</h4>{obs_list}"
 
-def generate_html_report(df, incidents, calib_time, session_path, wave_zones, question_analysis=None):
+def generate_html_report(df, incidents, calib_time, session_path, question_analysis=None):
     """Generates a comprehensive HTML report using an external template."""
     
     # 1. Prepare Main Plot
@@ -430,7 +354,6 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones, qu
     else:
         total_ta_count = 0
     major_incidents_count = len(incidents)
-    wave_event_count = len(wave_zones)
 
     # 2.5 Associate patterns with questions [NEW]
     if question_analysis:
@@ -440,45 +363,14 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones, qu
             # Find all incidents that started within this question's window
             qa['incidents'] = [inc for inc in incidents if q_start <= inc['start_time'] < q_end]
             
-    def format_highlight(inc, idx):
-        mins, secs = int(inc['start_time']) // 60, int(inc['start_time']) % 60
-    ax.axvspan(inc['start_time'], inc['end_time'], color=color, alpha=0.15)
 
-    ax.set_title("GSR Session Detail View (Refined Analysis)")
-    ax.set_xlabel("Time (Seconds)")
-    ax.set_ylabel("TA (Conductance)")
-    ax.grid(True, linestyle=':', alpha=0.6)
-    
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight')
-    plt.close(fig)
-    img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-
-    # 2. Metrics & Highlights
-    total_duration = df['Seconds'].max()
-    # Safely handle empty data
-    if len(df) > 0:
-        total_ta_count = df['TA'].iloc[0] - df['TA'].iloc[-1] 
-    else:
-        total_ta_count = 0
-    major_incidents_count = len(incidents)
-    wave_event_count = len(wave_zones)
-
-    # 2.5 Associate patterns with questions [NEW]
-    if question_analysis:
-        for qa in question_analysis:
-            q_start = qa['question']['time']
-            q_end = q_start + qa['stats']['duration_proc']
-            # Find all incidents that started within this question's window
-            qa['incidents'] = [inc for inc in incidents if q_start <= inc['start_time'] < q_end]
-            
     def format_highlight(inc, idx):
         mins, secs = int(inc['start_time']) // 60, int(inc['start_time']) % 60
         detail_id = f"detail_{idx}"
         return f"""
         <div class="highlight-item" onclick="var el=document.getElementById('{detail_id}'); el.style.display='block'; el.scrollIntoView();">
             <strong>{inc['pattern']}</strong> at {mins:02}:{secs:02}<br>
-            <span style="font-size:0.9em; color:#d32f2f;">{inc['abs_ta_drop']:.3f} TA</span> | {inc['unit_drop']:.1f}U
+            <span style="font-size:1.1em; color:#d32f2f; font-weight:bold;">{inc['abs_ta_drop']:.3f} TA</span> <span style="font-size:0.8em; color:gray;">({inc['unit_drop']:.1f}U)</span>
         </div>"""
 
     def format_q_highlight(qa, label, val, color):
@@ -612,10 +504,10 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones, qu
             <td data-val="{inc['start_time']}">{timestamp} ({phase})</td>
             <td>{q_context}</td>
             <td data-val="{inc['pattern']}">{inc['pattern']}</td>
-            <td style="background:#fff9e6; font-weight:bold;" data-val="{inc['abs_ta_drop']}">{inc['abs_ta_drop']:.3f}</td>
+            <td style="background:#fff9e6; font-weight:bold;" data-val="{inc['abs_ta_drop']}">{inc['abs_ta_drop']:.3f} TA</td>
             <td style="color:#666;" data-val="{inc['unit_drop']}">{inc['unit_drop']:.2f}U</td>
             <td data-val="{inc['duration']}">{inc['duration']:.2f}s</td>
-            <td data-val="{abs(inc['velocity'])}">{abs(inc['velocity']):.3f} U/s</td>
+            <td data-val="{abs(inc['abs_ta_drop']/inc['duration'])}">{abs(inc['abs_ta_drop']/inc['duration']):.3f} TA/s</td>
             <td>{detail_html}</td>
         </tr>
         """
@@ -717,48 +609,6 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones, qu
     explanation_note += "<p><strong>Why is \"Total Rise\" often larger than any single peak?</strong> \"Proc Total Rise\" is the <em>sum of every upward movement</em> during the processing period. For example, if the client rises 0.1, drops, and rises 0.1 again, the Total Rise is 0.2, even though the max single rise was only 0.1.</p>"
     explanation_note += "</div>"
 
-    wave_rows = ""
-    for idx, wz in enumerate(wave_zones):
-        mins, secs = int(wz['start']) // 60, int(wz['start']) % 60
-        timestamp = f"{mins:02}:{secs:02}"
-        duration = wz['end'] - wz['start']
-        
-        detail_id = f"wave_{idx}"
-        wave_img = generate_wave_plot(df, wz)
-        detail_html = ""
-        if wave_img:
-            detail_html = f'''
-            <button class="btn-detail" style="background:#2e7d32;" onclick="toggleDetail('{detail_id}')">View Waveform</button>
-            <div id="{detail_id}" class="detail-view" style="display:none; border-color:#2e7d32;">
-                <img src="data:image/png;base64,{wave_img}" style="max-width:600px;">
-                <p style="font-size: 0.8em; color: #2e7d32;">Floating Wave: Rhythmic Release Pattern ({duration:.1f}s duration).</p>
-            </div>
-            '''
-            
-        dur_str = f"{duration:.1f}"
-        wave_rows += "<tr>"
-        wave_rows += "<td data-val=\"" + str(wz['start']) + "\">" + timestamp + "</td>"
-        wave_rows += "<td>Floating Wave</td>"
-        wave_rows += "<td data-val=\"" + str(duration) + "\">" + dur_str + "s</td>"
-        wave_rows += "<td>" + detail_html + "</td>"
-        wave_rows += "</tr>"
-    
-    waves_section = ""
-    if wave_rows:
-        waves_section = """
-        <div class="section">
-            <h2 style="color:#2e7d32;">Floating Wave Analysis (Release Indicator)</h2>
-            <p style="font-size: 0.9em; color: dimgray;">Detected rhythmic sine-wave oscillations indicating "Release" or "End Phenomenon".</p>
-            <table>
-                <thead><tr><th onclick="sortTable(0, this)">Time &#8691;</th><th>Type</th><th onclick="sortTable(2, this)">Duration &#8691;</th><th>Detail</th></tr></thead>
-                <tbody>{}</tbody>
-            </table>
-            <div class="explanation-box" style="border-left: 5px solid #2e7d32;">
-                <strong>Metric Note:</strong> Floating waves are distinctly different from typical falls. They represent a state of 'undulating release', often seen when a subject is processing deep relief or detaching from a charge.
-            </div>
-        </div>
-        """.format(wave_rows)
-
     # Load Template
     try:
         template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "report_template.html")
@@ -778,16 +628,11 @@ def generate_html_report(df, incidents, calib_time, session_path, wave_zones, qu
     html_content = html_content.replace("{{ DURATION }}", duration_str)
     html_content = html_content.replace("{{ NET_TA_CHANGE }}", net_ta_str)
     html_content = html_content.replace("{{ INCIDENT_COUNT }}", str(major_incidents_count))
-    html_content = html_content.replace("{{ WAVE_COUNT }}", str(wave_event_count))
-    
-    # 2. Inject Sections
-    # 2. Inject Sections
-    synopsis_html = generate_session_synopsis(total_duration, total_ta_count, incidents, wave_event_count, question_analysis)
+    synopsis_html = generate_session_synopsis(total_duration, total_ta_count, incidents, question_analysis)
     html_content = html_content.replace("{{ SESSION_OVERVIEW }}", synopsis_html) 
     
     html_content = html_content.replace("{{ HIGHLIGHTS_SECTION }}", highlights_html)
     html_content = html_content.replace("{{ QUESTION_SECTION }}", question_html)
-    html_content = html_content.replace("{{ WAVES_SECTION }}", waves_section)
     html_content = html_content.replace("{{ MAIN_IMAGE_B64 }}", img_b64)
     
     # 3. Inject Tables & Filters
@@ -914,12 +759,11 @@ def plot_session(df, session_path):
     calib_time = detect_calibration_time(df)
             
     # Professional Analytics
-    incidents, wave_zones = analyze_incidents(df)
+    incidents = analyze_incidents(df)
     
     # Filter by calibration time [REQ]
     if calib_time is not None:
         incidents = [inc for inc in incidents if inc['start_time'] >= calib_time]
-        wave_zones = [wz for wz in wave_zones if wz['start'] >= calib_time]
 
     # [NEW] Question-by-Question Analysis
     questions = extract_questions(df)
@@ -939,10 +783,6 @@ def plot_session(df, session_path):
     fig, ax = plt.subplots(figsize=(16, 9), dpi=120)
     ax.plot(df['Seconds'], df['TA'], color='#004488', linewidth=0.7, alpha=0.9)
      
-    # Mark Floating Waves (Release Phenomena)
-    for wz in wave_zones:
-        ax.axvspan(wz['start'], wz['end'], color='#00ff00', alpha=0.1, label='Floating Wave' if wz == wave_zones[0] else "")
-        ax.text(wz['start'], ax.get_ylim()[0], ' WAVE ', color='green', fontsize=7, rotation=90)
 
     # Mark Questions [NEW]
     for qa in question_analysis:
@@ -970,7 +810,7 @@ def plot_session(df, session_path):
     plt.savefig(os.path.join(session_path, "analysis_result.png"))
     #plt.savefig("latest_analysis.png")
     plt.close(fig)
-    generate_html_report(df, incidents, calib_time, session_path, wave_zones, question_analysis)
+    generate_html_report(df, incidents, calib_time, session_path, question_analysis)
 
 if __name__ == "__main__":
     selected_dir = select_session()
