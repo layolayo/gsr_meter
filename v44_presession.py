@@ -13,6 +13,8 @@ import matplotlib
 matplotlib.use('TkAgg') # Enforce TkAgg for compatibility with Tkinter popups
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, Slider
+# [FIX] Unbind 'q' from default quit to allow custom handling
+plt.rcParams['keymap.quit'] = ['ctrl+w', 'cmd+w'] # Removed 'q'
 from datetime import datetime
 import os
 import json
@@ -103,12 +105,21 @@ active_process_data = None
 process_step_idx = -1
 process_waiting_for_calib = False
 process_waiting_for_input = False
+process_waiting_for_input = False
 process_ending_phase = False
+process_in_closing_phase = False # [NEW]
+current_q_set = ""
+current_q_id = ""
+current_q_text = ""
 
 # [NEW] User Management Globals
 current_user_name = "Guest"
 USERS_FILE = "users.json"
 
+
+
+# Global State for Assessment Selection
+pending_assessment_selection = {}
 
 def format_elapsed(total_seconds):
     hours, remainder = divmod(int(total_seconds), 3600)
@@ -245,8 +256,14 @@ class GSRReader(threading.Thread):
                                            elapsed_val = (datetime.now() - recording_start_time_obj).total_seconds()
                                            elapsed_str = format_elapsed(elapsed_val)
                                            
+                                      # [NEW] Enhanced Logging with Question Metadata
                                       log_ta = math.log10(max(0.01, self.current_ta))
-                                      writer_gsr.writerow([ts_now, elapsed_str, f"{self.current_ta:.5f}", f"{ta_accum:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{log_ta:.5f}"])
+                                      # Access globals safely
+                                      q_set = current_q_set if 'current_q_set' in globals() else ""
+                                      q_id = current_q_id if 'current_q_id' in globals() else ""
+                                      q_text = current_q_text if 'current_q_text' in globals() else ""
+                                      
+                                      writer_gsr.writerow([ts_now, elapsed_str, f"{self.current_ta:.5f}", f"{ta_accum:.5f}", f"{GSR_CENTER_VAL:.3f}", f"{1.0/win:.3f}", f"{win:.3f}", is_motion, f"{CALIB_PIVOT_TA:.3f}", note, current_pattern, f"{log_ta:.5f}", q_set, q_id, q_text])
                                  
                              except Exception: pass
 
@@ -1192,17 +1209,110 @@ if __name__ == "__main__":
             log_msg(f"Err: Process {name} data not found")
             return
             
+        # [NEW] Check for Required Assessments
+        reqs = process_runner.get_required_assessments(name)
+        if reqs:
+             show_assessment_selector(name, reqs)
+             return
+             
+        global pending_assessment_selection
+        pending_assessment_selection = {} # Clear previous
         show_session_notes_dialog(prefill_process=name)
 
+    def show_assessment_selector(process_name, requirements):
+         """Dialog to select items for a dynamic process."""
+         dlg = tk.Toplevel()
+         dlg.title(f"Configure: {process_name}")
+         dlg.geometry("400x500")
+         dlg.configure(bg='#2b2b2b')
+         
+         tk.Label(dlg, text="Select Assessment Items:", bg='#2b2b2b', fg='white', font=('Arial', 12, 'bold')).pack(pady=10)
+         
+         selectors = {}
+         
+         for req in requirements:
+              frame = tk.Frame(dlg, bg='#2b2b2b')
+              frame.pack(fill=tk.X, padx=20, pady=5)
+
+              
+              # Get Options
+              opts = process_runner.assessments.get(req, [])
+              
+              # Multiselect or Single? User asked for "Choice of item". Assumed Single for now, or Listbox for multiple?
+              # "track or offer the user the choice of the assessment list item" 
+              # Let's support selecting ONE specific item to start with.
+              
+              cb = ttk.Combobox(frame, values=opts, state="readonly")
+              if opts: cb.current(0)
+              cb.pack(side=tk.LEFT, fill=tk.X, expand=True)
+              selectors[req] = cb
+              
+         def on_confirm():
+              selection = {}
+              for r, cb in selectors.items():
+                   selection[r] = cb.get()
+              
+              global pending_assessment_selection
+              pending_assessment_selection = selection
+              dlg.destroy()
+              
+              # Proceed
+              show_session_notes_dialog(prefill_process=process_name)
+         
+         tk.Button(dlg, text="CONTINUE", command=on_confirm, bg='#005500', fg='white', font=('Arial', 10, 'bold')).pack(pady=20)
+         
+         # Center
+         dlg.update_idletasks()
+         x = (dlg.winfo_screenwidth() // 2) - (dlg.winfo_width() // 2)
+         y = (dlg.winfo_screenheight() // 2) - (dlg.winfo_height() // 2)
+         dlg.geometry(f"+{x}+{y}")
+         dlg.transient(); dlg.grab_set()
+
+    def trigger_closing_sequence():
+        """Interrupts current process and jumps to closing questions."""
+        global process_in_closing_phase, process_step_idx, process_waiting_for_input, process_ending_phase
+        global process_waiting_for_calib
+        
+        # Only trigger if we are inside a process (or running)
+        # If already closing, do nothing? Or restart closing?
+        if process_ending_phase: return # Already done
+        
+        print("[Process] Triggering Closing Sequence...", flush=True)
+        log_msg("Initiating Closing Sequence...")
+        
+        process_in_closing_phase = True
+        process_ending_phase = False # Reset this if we were at the end
+        process_waiting_for_calib = False # Force out of calib wait
+        
+        # Reset index to 0 of closing list
+        process_step_idx = 0
+        
+        # Start immediately
+        advance_process_step()
+
+    # Removed duplicate def advance_process_step
+        
     def advance_process_step():
-        global process_step_idx, process_waiting_for_input, active_process_data, active_event_label
+        global process_step_idx, process_waiting_for_input, active_event_label
+        global active_process_data, process_in_closing_phase
+        global current_q_set, current_q_id, current_q_text # [NEW]
         
-        if not active_process_data: return
-        
-        steps = active_process_data.get('steps', [])
+        # Decide source of steps
+        if process_in_closing_phase:
+             steps = process_runner.get_closing_questions()
+             prefix = "CLOSING"
+        else:
+             if not active_process_data: return
+             steps = active_process_data.get('steps', [])
+             prefix = "STEP"
         
         if process_step_idx >= len(steps):
-             # [MOD] Intermediate "Session Complete" Step
+             # [MOD] Auto-trigger Closing Questions if not already in closing phase
+             if not process_in_closing_phase and not process_ending_phase:
+                  trigger_closing_sequence()
+                  return
+             
+             # If we simply ran out of steps AND we are in closing phase (or closing valid), End Session
              enter_process_ending_phase()
              return
             
@@ -1211,8 +1321,13 @@ if __name__ == "__main__":
         text = step.get('text', "")
         audio_file = step.get('audio_file', "")
         
+        # [NEW] Extract Metadata
+        current_q_set = step.get('set', "")
+        current_q_id = step.get('question', "")
+        current_q_text = text
+        
         # Visuals
-        log_msg(f"[Process] Step {process_step_idx+1}: {text}")
+        log_msg(f"[{prefix}] {process_step_idx+1}: {text}")
         if 'txt_process_overlay' in ui_refs:
             ui_refs['txt_process_overlay'].set_text(text + "\n\n(Press SPACE or ENTER to Continue)")
             ui_refs['txt_process_overlay'].set_color('#FFCC00') # Orange/Gold
@@ -1220,15 +1335,34 @@ if __name__ == "__main__":
             ui_refs['txt_process_overlay'].set_visible(True)
             
         # Audio
-        # Use Thread or Non-Blocking Play to avoid UI freeze
-        # ProcessRunner refactored to be non-blocking play call
         threading.Thread(target=lambda: play_step_audio(text, audio_file), daemon=True).start()
         
         process_waiting_for_input = True
-        active_event_label = f"STEP_{process_step_idx+1}_START"
+        active_event_label = f"{prefix}_{process_step_idx+1}_START"
         
         # Prepare for next
         process_step_idx += 1
+
+    def trigger_closing_sequence():
+        """Interrupts current process and jumps to closing questions."""
+        global process_in_closing_phase, process_step_idx, process_waiting_for_input, process_ending_phase
+        
+        # Only trigger if we are inside a process (or running)
+        # If already closing, do nothing? Or restart closing?
+        if process_ending_phase: return # Already done
+        
+        print("[Process] Triggering Closing Sequence...", flush=True)
+        log_msg("Initiating Closing Sequence...")
+        
+        process_in_closing_phase = True
+        process_ending_phase = False # Reset this if we were at the end
+        process_waiting_for_calib = False # Force out of calib wait
+        
+        # Reset index to 0 of closing list
+        process_step_idx = 0
+        
+        # Start immediately
+        advance_process_step()
 
     def enter_process_ending_phase():
         """Shows session complete message and waits for final confirmation."""
@@ -1313,7 +1447,7 @@ if __name__ == "__main__":
              # Initialize GSR CSV
              f_gsr = open(fname_gsr, 'w', newline='')
              writer_gsr = csv.writer(f_gsr)
-             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA Counter", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Notes", "Pattern", "Log_TA"])
+             writer_gsr.writerow(["Timestamp", "Elapsed", "TA", "TA Counter", "TA SET", "Sensitivity", "Window_Size", "Motion", "Pivot", "Notes", "Pattern", "Log_TA", "Question_Set", "Question_ID", "Question_Text"])
              
              recording_start_time_obj = datetime.now()
              is_recording = True 
@@ -1341,6 +1475,7 @@ if __name__ == "__main__":
     # [NEW] Refactored Notes Dialog
     def show_session_notes_dialog(prefill_process=None, manual_trigger=False):
         global pending_notes, pending_rec, calib_mode, is_recording, current_user_name
+        global pending_assessment_selection # [FIX] Moved to top
         
         # [NEW] Check Mic Selection First
         if audio_handler.selected_device_idx is None:
@@ -1358,6 +1493,11 @@ if __name__ == "__main__":
         # Prefill Logic
         p_user = current_user_name
         p_proc = prefill_process if prefill_process else ""
+        
+        # [NEW] Append Selection to Notes
+        if pending_assessment_selection:
+             sel_str = ", ".join(pending_assessment_selection.values())
+             p_proc += f" [{sel_str}]"
         
         template_text = f"Client Name: {p_user}\n\nProcess Run: {p_proc}\n\nOther Notes:"
         
@@ -1403,10 +1543,47 @@ if __name__ == "__main__":
                   global active_process_name, active_process_data, process_step_idx, process_waiting_for_calib, process_waiting_for_input
                   # Verify we have the data (should be cached)
                   if process_runner:
-                       p_data = process_runner.get_process_data(prefill_process)
-                       if p_data:
+                       # [NEW] Check for Pending Selection
+
+                       if pending_assessment_selection:
+                            print(f"[Process] Compiling dynamic steps with: {pending_assessment_selection}")
+                            custom_steps = process_runner.compile_process_dynamic(prefill_process, pending_assessment_selection)
+                            
+                            # [NEW] Prepend Starting Questions
+                            if process_runner.starting_questions:
+                                 custom_steps = process_runner.starting_questions + custom_steps
+                                 
+                            # Create temporary process data
                             active_process_name = prefill_process
-                            active_process_data = p_data
+                            active_process_data = {
+                                "name": prefill_process,
+                                "steps": custom_steps
+                            }
+                            # Clear after use
+                            pending_assessment_selection = {}
+                            
+                            # [FIX] Initialize State
+                            process_step_idx = 0
+                            process_waiting_for_calib = True
+                            process_waiting_for_input = False
+                            
+                            if 'txt_process_overlay' in ui_refs:
+                                 ui_refs['txt_process_overlay'].set_text(f"PROCESS: {prefill_process} [Dynamic]\n(Waiting for Calibration)")
+                                 ui_refs['txt_process_overlay'].set_visible(True)
+                       else:
+                            p_data = process_runner.get_process_data(prefill_process)
+                            if p_data:
+                                 print(f"[Process] Starting Standard: {prefill_process} (Steps: {len(p_data['steps'])})")
+                                 active_process_name = prefill_process
+                                 # [NEW] Prepend Starting Questions (Create Copy to avoid mutation)
+                                 if process_runner.starting_questions:
+                                      print(f"[Process] Prepending {len(process_runner.starting_questions)} Starting Questions")
+                                      # Shallow copy dict, new list for steps
+                                      p_copy = p_data.copy()
+                                      p_copy['steps'] = process_runner.starting_questions + p_data['steps']
+                                      active_process_data = p_copy
+                                 else:
+                                      active_process_data = p_data
                             process_step_idx = 0
                             process_waiting_for_calib = True
                             process_waiting_for_input = False
@@ -1962,8 +2139,9 @@ if __name__ == "__main__":
              if not calib_mode: # [FIX] Do not overwrite Calibration Overlay
                  if now < motion_lock_expiry:
                      overlay_text = f"MOTION (Vel={velocity:.1f})"
-                     if 'txt_motion_overlay' in ui_refs:
-                         ui_refs['txt_motion_overlay'].set_text(overlay_text)
+                     # [MOD] Removed redundant central motion text per user request
+                     # if 'txt_motion_overlay' in ui_refs:
+                     #     ui_refs['txt_motion_overlay'].set_text(overlay_text)
                  else:
                       if 'txt_motion_overlay' in ui_refs:
                           ui_refs['txt_motion_overlay'].set_text("")
@@ -2399,12 +2577,22 @@ if __name__ == "__main__":
     # [NEW] Keyboard Event Handler for Fullscreen Control
     def on_key(event):
         try:
+            # 'Q' Trigger for Closing Questions
+            if event.key.lower() == 'q':
+                 if active_process_name or process_in_closing_phase:
+                      trigger_closing_sequence()
+                 return
+
             if event.key == 'escape':
+                # If in a process and NOT yet in closing phase/end phase, ESC -> Closing
+                if (active_process_name is not None) and (not process_in_closing_phase) and (not process_ending_phase):
+                     print("[System] Escape pressed -> Triggering Closing Sequence")
+                     trigger_closing_sequence()
+                     return
+                
+                # Otherwise, Normal Exit
                 print("[System] Escape key pressed. Exiting...")
-                # Try to exit gracefully
                 on_close(None)
-                # If on_close() doesn't kill it immediately (it sets flags), we can ensure cleanup
-                # But let's let the main loop catch the flag if possible, or force it.
                 global app_running
                 app_running = False  
         except Exception: pass

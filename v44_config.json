@@ -2,7 +2,7 @@
     "mic_name": "sof-hda-dsp: - (hw:0,6)",
     "mic_gain": 10.0,
     "mic_rate": 48000,
-    "gsr_center": 5.384464189152616,
-    "log_window": 0.0714794558076242,
+    "gsr_center": 3.3979942731688895,
+    "log_window": 0.054862270114689096,
     "zoom_coeff": 1.0
 }

@@ -1,75 +1,283 @@
 {
+    "question_library": {
+        "compare": {
+            "text": "And compare that to where you are now.",
+            "audio_file": "process_audio/Compare.wav"
+        },
+        "aitaeat": {
+            "text": "And is there anything else about that?",
+            "audio_file": "process_audio/Aitaeat.wav"
+        },
+        "aitae": {
+            "text": "And is there anything else?",
+            "audio_file": "process_audio/Aitae.wav"
+        },
+        "atwch": {
+            "text": "And then what can happen?",
+            "audio_file": "process_audio/Atwch.wav"
+        },
+        "awmygft": {
+            "text": "And want must you get from that.",
+            "audio_file": "process_audio/Awmygft.wav"
+        },
+        "awcyx": {
+            "text": "And what could you [conditionalprocessing]?"
+        },
+        "awcynx": {
+            "text": "And what could you not [conditionalprocessing]?"
+        },
+        "awdykat": {
+            "text": "And what do you know about that?",
+            "audio_file": "process_audio/Awdykat.wav"
+        },
+        "awdyknaaot": {
+            "text": "And what do you know now about all of this?",
+            "audio_file": "process_audio/Awdyknaaot.wav"
+        },
+        "awdykn": {
+            "text": "And what do you know now?",
+            "audio_file": "process_audio/Awdykn.wav"
+        },
+        "awdtkay": {
+            "text": "And what does that know about you?",
+            "audio_file": "process_audio/Awdtkay.wav"
+        },
+        "awedykat": {
+            "text": "And what else do you know about that?",
+            "audio_file": "process_audio/Awedykat.wav"
+        },
+        "awedtkay": {
+            "text": "And what else does that know about you?",
+            "audio_file": "process_audio/Awedtkay.wav"
+        },
+        "awitddfx": {
+            "text": "And what is the dictionary definition for [conditionalprocessing]?"
+        },
+        "awitdbwyknawys": {
+            "text": "And what is the difference between what you know now and when you started?",
+            "audio_file": "process_audio/Awitdbwyknawys.wav"
+        },
+        "awiydfx": {
+            "text": "And what is your definition for [conditionalprocessing]?"
+        },
+        "awmymstdgfy": {
+            "text": "And what must you make sure that does get from you.",
+            "audio_file": "process_audio/Awmymstdgfy.wav"
+        },
+        "awmymstdngfy": {
+            "text": "And what must you make sure that does not get from you.",
+            "audio_file": "process_audio/Awmymstdngfy.wav"
+        },
+        "awmyngft": {
+            "text": "And what must you not get from that.",
+            "audio_file": "process_audio/Awmyngft.wav"
+        },
+        "awwyltwon": {
+            "text": "And what would you like to work on now?",
+            "audio_file": "process_audio/Awwyltwon.wav"
+        },
+        "awaynirtt": {
+            "text": "And where are you now in relationship to that?",
+            "audio_file": "process_audio/Awaynirtt.wav"
+        },
+        "awaynwx": {
+            "text": "And where are you now with [conditionalprocessing]?"
+        },
+        "now": {
+            "text": "And where are you now?",
+            "audio_file": "process_audio/Now.wav"
+        },
+        "awctcf": {
+            "text": "And where could that come from?",
+            "audio_file": "process_audio/Awctcf.wav"
+        },
+        "beenelse": {
+            "text": "And where else have you been?",
+            "audio_file": "process_audio/BeenElse.wav"
+        },
+        "beelse": {
+            "text": "And where else might you be.",
+            "audio_file": "process_audio/BeElse.wav"
+        },
+        "been": {
+            "text": "And where have you been?",
+            "audio_file": "process_audio/Been.wav"
+        },
+        "be": {
+            "text": "And where might you be.",
+            "audio_file": "process_audio/Be.wav"
+        },
+        "sos": {
+            "text": "Start of session."
+        },
+        "end": {
+            "text": "Thank you. The session is complete.",
+            "audio_file": "process_audio/Complete.wav"
+        }
+    },
     "processes": [
         {
             "name": "Test Process",
             "steps": [
-                {
-                    "text": "What is being experienced?"
-                },
-                {
-                    "text": "This is a text-to-speech test. Please verify audio quality."
-                }
+                "awwyltwon",
+                "awdyknaaot"
             ]
         },
         {
             "name": "Process 4",
+            "structure": {
+                "pattern": [
+                    "now",
+                    "been",
+                    "compare",
+                    "be",
+                    "compare",
+                    "beenelse",
+                    "compare",
+                    "beelse",
+                    "compare",
+                    "beenelse",
+                    "compare",
+                    "beelse",
+                    "compare",
+                    "now"
+                ],
+                "repeat": 6
+            }
+        },
+        {
+            "name": "Issue Buster (Warp Drive)",
+            "steps": [
+                "awwyltwon",
+                {
+                    "pattern": [
+                        "awdykat"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "awdtkay"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "aitaeat"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "awctcf"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "atwch"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "aitaeat"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn"
+            ]
+        },
+        {
+            "name": "Issue Buster",
+            "steps": [
+                "awwyltwon",
+                "awdykat",
+                {
+                    "pattern": [
+                        "awedykat"
+                    ],
+                    "repeat": 5
+                },
+                "awdykn",
+                "awdtkay",
+                {
+                    "pattern": [
+                        "awedtkay"
+                    ],
+                    "repeat": 5
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "aitaeat"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "awctcf"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "atwch"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn",
+                {
+                    "pattern": [
+                        "aitaeat"
+                    ],
+                    "repeat": 6
+                },
+                "awdykn"
+            ]
+        },
+        {
+            "name": "Conditional Processing",
             "steps": [
                 {
-                    "text": "And where are you now?",
-                    "audio_file": "process_audio/Now.wav"
+                    "iterate_assessment": "conditionalprocessing",
+                    "pattern": [
+                        "awaynwx",
+                        "awiydfx",
+                        "awitddfx"
+                    ]
                 },
                 {
-                    "text": "And where have you been?",
-                    "audio_file": "process_audio/Been.wav"
-                },
-                {
-                    "text": "And compare that to where you are now",
-                    "audio_file": "process_audio/Compare.wav"
-                },
-                {
-                    "text": "And where might you be?",
-                    "audio_file": "process_audio/Be.wav"
-                },
-                {
-                    "text": "And compare that to where you are now",
-                    "audio_file": "process_audio/Compare.wav"
-                },
-		{
-                    "text": "And where else have you been?",
-                    "audio_file": "process_audio/BeenElse.wav"
-                },
-                {
-                    "text": "And compare that to where you are now",
-                    "audio_file": "process_audio/Compare.wav"
-                },
-                {
-                    "text": "And where else might you be?",
-                    "audio_file": "process_audio/BeElse.wav"
-                },
-                {
-                    "text": "And compare that to where you are now",
-                    "audio_file": "process_audio/Compare.wav"
-                },
-                {
-                    "text": "And where else have you been?",
-                    "audio_file": "process_audio/BeenElse.wav"
-                },
-                {
-                    "text": "And compare that to where you are now",
-                    "audio_file": "process_audio/Compare.wav"
-                },
-                {
-                    "text": "And where else might you be?",
-                    "audio_file": "process_audio/BeElse.wav"
-                },
-                {
-                    "text": "And compare that to where you are now",
-                    "audio_file": "process_audio/Compare.wav"
-                },
-                {
-                    "text": "And where are you now?",
-                    "audio_file": "process_audio/Now.wav"
+                    "iterate_assessment": "conditionalprocessing",
+                    "pattern": [
+                        "awcyx",
+                        "awcynx"
+                    ],
+                    "repeat": -1
                 }
+            ]
+        }
+    ],
+    "closing_questions": [
+        {
+            "steps": [
+                "awdyknaaot",
+                "awitdbwyknawys",
+                "end"
+            ]
+        }
+    ],
+    "starting_questions": [
+        {
+            "steps": [
+                "sos"
             ]
         }
     ]
