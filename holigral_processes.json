@@ -1,0 +1,1996 @@
+{
+    "question_library": {
+        "fwd_sfa": {
+            "text": "and now what can happen? "
+        },
+        "fwd_sfD": {
+            "text": "and now what happens? "
+        },
+        "fwd_sfb": {
+            "text": "And as that is happening, now what is happening? "
+        },
+        "inside_isa": {
+            "text": "and what could be inside that feeling? "
+        },
+        "saturday_saa": {
+            "text": "say a little more about the subject, please. "
+        },
+        "sunday_su1": {
+            "text": "so, what do you know about this? "
+        },
+        "sunday_su2": {
+            "text": "and what else do you know about this? "
+        },
+        "sunday_7": {
+            "text": "and what do you know now? "
+        },
+        "sunday_suD": {
+            "text": "and that, you know what, about, that? "
+        },
+        "monday_mo1": {
+            "text": "and, what does this know about you? "
+        },
+        "monday_mo2": {
+            "text": "and what else does this know about you? "
+        },
+        "monday_mo7": {
+            "text": "and what do you know now? "
+        },
+        "monday_moD": {
+            "text": "and, you, that knows what, about, you? "
+        },
+        "tuesday_tu2": {
+            "text": "and is there anything else about that? "
+        },
+        "tuesday_tu7": {
+            "text": "and what do you know now? "
+        },
+        "tuesday_tuD": {
+            "text": "and that, you-sense, anything-else, about that? "
+        },
+        "wednesday_wed2": {
+            "text": "and that could have come from where (or what, or who)? "
+        },
+        "wednesday_wed7": {
+            "text": "and what do you know now? "
+        },
+        "wednesday_wedD": {
+            "text": "and that could have come from where? "
+        },
+        "thursday_th2": {
+            "text": "and now what can happen? "
+        },
+        "thursday_th7": {
+            "text": "and what do you know now? "
+        },
+        "friday_f1": {
+            "text": "and is there anything else? "
+        },
+        "friday_f2": {
+            "text": "and, that, is there anything else? "
+        },
+        "job_profile_jp0": {
+            "text": "The last thing a business needs is a conformity to a limited world view, it needs the greatest diversity to assure the greatest leverage and clientbase match.  So we do not want you to answer this survey trying to guess the right answer, because the only right answer IS your own natural way, and if you don\u2019t fill your niche, someone else might, and then you\u2019d end up in the wrong role for yourself and your colleagues.  So please be truthful and honest with yourself, it\u2019s the only way we can maximse the business performance and your takehome pay that results from globally optimising this business.  There are 10 sets of options, with your choice to rank in importance (First: most important ... Last: least important) ok?"
+        },
+        "job_profile_jp1": {
+            "text": "q"
+        },
+        "ancestors_anc1a": {
+            "text": "  Make sure you have pen/postits available.   Describe the situation fully. "
+        },
+        "ancestors_anc1b": {
+            "text": " When you think of your mother, whereabouts do you see her?   how far from your body, in which direction? "
+        },
+        "ancestors_anc1c": {
+            "text": " Place a postit in your present position, and then place another one in her space. "
+        },
+        "ancestors_anc1d": {
+            "text": " What does your mother know about this? "
+        },
+        "ancestors_anc2a": {
+            "text": " Whereabouts could her mother be? "
+        },
+        "ancestors_anc2b": {
+            "text": " Place a postit in that position. "
+        },
+        "ancestors_anc2c": {
+            "text": " What does she know about this? "
+        },
+        "ancestors_anc3a": {
+            "text": " Return to your starting position.  When you think of your father, whereabouts do you see him?   how far from your body, in which direction? "
+        },
+        "ancestors_anc3b": {
+            "text": " Place another postit in his space. "
+        },
+        "ancestors_anc3c": {
+            "text": " What does your father know about this? "
+        },
+        "ancestors_anc4a": {
+            "text": " whereabouts could his father be? "
+        },
+        "ancestors_anc4b": {
+            "text": " Place a postit in that position. "
+        },
+        "ancestors_anc4c": {
+            "text": " What does he know about this? "
+        },
+        "ancestors_anc5": {
+            "text": " and what do your ancestors have to say to you now? "
+        },
+        "relating_relB": {
+            "text": " Choose a person with whom you had a relationship, in the past (a completed relationship). "
+        },
+        "relating_relP": {
+            "text": " Choose a customer or other business with whom you had a relationship, in the past (a completed relationship). "
+        },
+        "relating_rel1a": {
+            "text": " What did you want from the relationship before it started? "
+        },
+        "relating_rel1b": {
+            "text": " What did they want from the relationship before it started? "
+        },
+        "relating_rel1c": {
+            "text": "  What were your needs, and what were their needs? "
+        },
+        "relating_rel2a": {
+            "text": "  As they become aware of you, how are they relating to you, as they become aware of you? "
+        },
+        "relating_rel2b": {
+            "text": "  As you become aware of them, how are you relating to them, as you become aware of them? "
+        },
+        "relating_rel2c": {
+            "text": "  Then what happens? "
+        },
+        "relating_rel2d": {
+            "text": "  And as that is happening, what is happening, as that is happening? "
+        },
+        "relating_rel3a": {
+            "text": "  As time goes by, how do they change how they relate to you? "
+        },
+        "relating_rel3b": {
+            "text": "  As time goes by, how do you change how you relate to them? "
+        },
+        "relating_rel3c": {
+            "text": "  How else do you and they change, as time goes by? "
+        },
+        "relating_rel4a": {
+            "text": "  What did they do to fine-tune the relationship into its habitual pattern? "
+        },
+        "relating_rel4b": {
+            "text": "  What did you do to fine-tune the relationship into its habitual pattern? "
+        },
+        "relating_rel4c": {
+            "text": "  How did it stabilise into the form that lasted longest? "
+        },
+        "relating_rel5a": {
+            "text": "  How have they been serving you through the relationship? "
+        },
+        "relating_rel5b": {
+            "text": "  What were you getting from it? "
+        },
+        "relating_rel5c": {
+            "text": "  How were you serving them through it? "
+        },
+        "relating_rel5d": {
+            "text": "  What were they getting from it? "
+        },
+        "relating_rel6a": {
+            "text": "  What did you each do or not do to keep it working or to improve it? "
+        },
+        "relating_rel6b": {
+            "text": "  What changes did they want? "
+        },
+        "relating_rel6c": {
+            "text": "  What changes did you want? "
+        },
+        "relating_rel7a": {
+            "text": "  What did they do or not do, that contributed to the ending? "
+        },
+        "relating_rel7b": {
+            "text": "  What did you do or not do that contributed to the ending? "
+        },
+        "relating_rel7c": {
+            "text": " What kind of relationship was it? "
+        },
+        "relating_rel7d": {
+            "text": "  IS there anything incomplete about this relationship? "
+        },
+        "relating_rel7e": {
+            "text": "  What did you get from it? "
+        },
+        "relating_rel7f": {
+            "text": "  What did they get from it? "
+        },
+        "relating_rel8a": {
+            "text": "  Review the pattern of this relationship.  Going back over the pattern:"
+        },
+        "relating_rel8b": {
+            "text": "  What did you really want, at the beginning? "
+        },
+        "relating_rel8c": {
+            "text": "  Did you get it? "
+        },
+        "relating_rel8d": {
+            "text": "  What did you assume, but not state nor ask for, at the beginning? "
+        },
+        "relating_rel8e": {
+            "text": "  In response, how did you change? "
+        },
+        "relating_rel8f": {
+            "text": "  How did you develop or grow? "
+        },
+        "relating_rel8g": {
+            "text": "  What did you learn? "
+        },
+        "relating_rel8h": {
+            "text": "  What did it stabilise into? "
+        },
+        "relating_rel8i": {
+            "text": "  How did it serve you? "
+        },
+        "relating_rel8j": {
+            "text": "  How did it end? "
+        },
+        "relating_rel9": {
+            "text": "  Now choose a person who is presently in your life? "
+        },
+        "relating_rel10": {
+            "text": "  Knowing the answers above, where are you now in your relationship? "
+        },
+        "relating_rel11": {
+            "text": "  What, if anything, would you like to do differently now? "
+        },
+        "rescaling_rs1a": {
+            "text": "Write, draw, or represent whatever it is ..."
+        },
+        "rescaling_rs1b": {
+            "text": "Add more information, knowing, feelings, anything else about it ..."
+        },
+        "rescaling_rs1c": {
+            "text": "Keep on adding more ... (add more paper, ... and more paper ... and more paper ...)"
+        },
+        "rescaling_rs1d": {
+            "text": "until you are out of room/space ..."
+        },
+        "rescaling_rs2a": {
+            "text": "Represent everthing smaller ... e.g. draw it all smaller scale."
+        },
+        "rescaling_rs2b": {
+            "text": "Add more information, knowing, feelings, anything else about it ..."
+        },
+        "rescaling_rs2c": {
+            "text": "Keep on adding more ... (add more paper, ... and more paper ... and more paper ...)"
+        },
+        "rescaling_rs2d": {
+            "text": "until you are out of room/space ..."
+        },
+        "rescaling_rs3": {
+            "text": "one last time, notice how you are now seeing-experiencing the situation.  Notice how old you feel and what is happening."
+        },
+        "truth_t1": {
+            "text": "and what would have had to be true in order for this to have become true?"
+        },
+        "truth_t2": {
+            "text": "and what would have had to have been true in order for that to have become true?"
+        },
+        "truth_t3": {
+            "text": "- and, have you just mentioned anyone else? (y/n)"
+        },
+        "truth_t4": {
+            "text": "and what would have to be true in order for them (the other person(s)) to have become like that?"
+        },
+        "truth_t5": {
+            "text": "and what would have had to have been true in order for that to have become true?"
+        },
+        "truth_t6": {
+            "text": "- and, have you just mentioned anyone else? (y/n)"
+        },
+        "truth_t7": {
+            "text": "and what would have had to have been true in order for them to have become  like that?"
+        },
+        "truth_t8": {
+            "text": "and what do you know now?"
+        },
+        "truth_t9": {
+            "text": "and now what can be true?"
+        },
+        "truth_tA": {
+            "text": "and what do you know now?"
+        },
+        "pulling_pb1": {
+            "text": "what kind of you were you before this arose?"
+        },
+        "pulling_pb2": {
+            "text": "what kind of you were you before that"
+        },
+        "pulling_pb3a": {
+            "text": "and how old was that?"
+        },
+        "pulling_pb3b": {
+            "text": "and what was happening then?"
+        },
+        "pulling_pb3c": {
+            "text": "and what does this indicate about events now?"
+        },
+        "pulling_pb3d": {
+            "text": "and what do you know now?"
+        },
+        "pronoun_inside_pi1a": {
+            "text": "Whereabouts in your body do you feel your feeling about this?"
+        },
+        "pronoun_inside_pi1b": {
+            "text": "and how old could that 'i' be?"
+        },
+        "pronoun_inside_pi1c": {
+            "text": "and how old could that 'me' be?"
+        },
+        "pronoun_inside_pi1d": {
+            "text": "and how old could that 'myself' be?"
+        },
+        "pronoun_inside_pi1e": {
+            "text": "and how old could that 'you' be?"
+        },
+        "pronoun_inside_pi1g": {
+            "text": "and how old could that be? (age - as a number)"
+        },
+        "pronoun_inside_pi1h": {
+            "text": "inputline"
+        },
+        "pronoun_other_po1a": {
+            "text": "Whereabouts in their body do they feel that feeling about this? (probably similar place)"
+        },
+        "pronoun_other_po1b": {
+            "text": "and how old could that 'i' be?"
+        },
+        "pronoun_other_po1c": {
+            "text": "and how old could that 'me' be?"
+        },
+        "pronoun_other_po1d": {
+            "text": "and how old could that 'myself' be?"
+        },
+        "pronoun_other_po1e": {
+            "text": "and how old could that 'you' be?"
+        },
+        "pronoun_other_po1f": {
+            "text": "and how old could that be? (age - as a number)"
+        },
+        "pronoun_other_po1g": {
+            "text": "inputline"
+        },
+        "pronoun_other_po1h": {
+            "text": "and who else is there?"
+        },
+        "pronoun_control_1": {
+            "text": "and is anyone else there? (y/n)"
+        },
+        "story_insight_sti1a": {
+            "text": "What is THEIR favourite film or book or story?  (Write down your first though, however ridiculous.)"
+        },
+        "story_insight_sti1b": {
+            "text": "Write the name of each character on a different post-it."
+        },
+        "story_insight_sti1c": {
+            "text": "Place each postit in a different space   (In a large enough space for you to be able to visit each one, physically.)"
+        },
+        "story_insight_sti1d": {
+            "text": "Identify the role of each character"
+        },
+        "story_insight_sti1e": {
+            "text": "Go to the space of each character in turn, to understand their role."
+        },
+        "story_insight_sti1f": {
+            "text": "Now identify where you are in the story, which scene?"
+        },
+        "story_insight_sti1g": {
+            "text": "Which character do THEY most identify with?"
+        },
+        "story_insight_sti1h": {
+            "text": "Who in your life is represented by the other characters.  (Identify a real person with each one.)"
+        },
+        "story_insight_sti1i": {
+            "text": "How do the characters complete the story?"
+        },
+        "story_insight_sti1j": {
+            "text": "What the classic ending of this type of story?"
+        },
+        "story_insight_sti1k": {
+            "text": "Are there any other possible endings?"
+        },
+        "story_insight_sti1l": {
+            "text": "What small changes or tweaks might be possible?"
+        },
+        "story_insight_sti1m": {
+            "text": "How can you use this story to understand the story going on right now in the world around you?"
+        },
+        "checkdone_issue0": {
+            "text": "do you now have complete clarity on this? (y/n)"
+        },
+        "habit_ha1": {
+            "text": "and just as it is starting, what is happening, just as it is starting?"
+        },
+        "habit_ha2a": {
+            "text": "and then what happens?"
+        },
+        "habit_ha2b": {
+            "text": "and as that is happening, then what is happening, just as that is happening?"
+        },
+        "habit_ha3a": {
+            "text": "Use the following questions to progressively fill in the blanks between the happenings:   1) and just before 'b' and just after 'a' what happens, just before 'b' and just after 'a'?   2) and then what was happening?"
+        },
+        "habit_ha3b": {
+            "text": "Review the sequence of the habit.  Notice at which moment it becomes a problem."
+        },
+        "boolean_bo1a": {
+            "text": "What do you know about the subject?"
+        },
+        "boolean_bo1b": {
+            "text": "What don't you know about the subject?"
+        },
+        "boolean_bo1c": {
+            "text": "What do you not know about the subject?"
+        },
+        "boolean_bo1d": {
+            "text": "What don't you not know about the subject?"
+        },
+        "boolean_bo1e": {
+            "text": "What does 'not-you' know about the subject?"
+        },
+        "boolean_bo1f": {
+            "text": "What doesn't 'not-you' know about the subject?"
+        },
+        "boolean_bo1g": {
+            "text": "What does 'not-you' not know about the subject?"
+        },
+        "boolean_bo1h": {
+            "text": "What doesn't 'not-you' not know about the subject?"
+        },
+        "deint_de1a": {
+            "text": "Write down (on paper) or represent everything and anything; every belief, every common thing you say, everything; your life story.   Keep on writing; have others notice what you say to them, and add these sentences.   finished?"
+        },
+        "deint_de1b": {
+            "text": "Cut each statement onto its own piece of paper.  Then place together the sentences that come from the same pronoun."
+        },
+        "deint_de1c": {
+            "text": "Add any more statements that go with each group, and place into their own, new group any statements that fit none of the groups."
+        },
+        "deint_de1e": {
+            "text": "Sort and identity the sources and roots of each group, until you are clear on how each of these came to you in the first instance."
+        },
+        "deint_de1f": {
+            "text": "And, what do you know now?"
+        },
+        "betweens_b1a": {
+            "text": "Who or what is that which you do not yet understand?"
+        },
+        "betweens_b1b": {
+            "text": "what kind of space could the space be between you and the other?"
+        },
+        "betweens_b2": {
+            "text": "what kind of space could the space be between that and the other?"
+        },
+        "betweens_3": {
+            "text": "what do you know now?"
+        },
+        "betweens_b4": {
+            "text": "from there, what kind of space could the space be between there and you?"
+        },
+        "betweens_b5": {
+            "text": "what kind of space could the space be between that and you?"
+        },
+        "betweens_b6": {
+            "text": "what do you know now?"
+        },
+        "scenarios_sc1": {
+            "text": "Choose the scenario."
+        },
+        "scenarios_sc2": {
+            "text": "and what do you now choose as your preferred outcome?"
+        },
+        "scenarios_sc3a": {
+            "text": "and then what would happen?"
+        },
+        "scenarios_sc3b": {
+            "text": "and what would NOT happen?"
+        },
+        "scenarios_sc4": {
+            "text": "and would you be happy with this? (y/n)"
+        },
+        "perceptual_ps1a": {
+            "text": "What is the subject of interest?"
+        },
+        "perceptual_ps1b": {
+            "text": "Do you have a sense of this?"
+        },
+        "perceptual_ps1c": {
+            "text": "And is there anything else about that?"
+        },
+        "perceptual_ps1d": {
+            "text": "And whereabouts could that be (inside or outside your body)?"
+        },
+        "perceptual_ps1e": {
+            "text": "And does that have a size or shape or form?"
+        },
+        "perceptual_ps1f": {
+            "text": "And what kind of space could the space be, around that?"
+        },
+        "perceptual_ps2a": {
+            "text": "and how far does that go?"
+        },
+        "perceptual_ps2b": {
+            "text": "and what kind of edge or boundary could that have?"
+        },
+        "perceptual_ps2c": {
+            "text": "and what could be on the other side of that?"
+        },
+        "perceptual_ps3a": {
+            "text": "and what does that know?"
+        },
+        "perceptual_ps3b": {
+            "text": "And is there anything else about that?"
+        },
+        "signals_si1a": {
+            "text": "Describe what is happening around you, right now."
+        },
+        "signals_si1b": {
+            "text": "Note where you are.  If outdoors, note animals or cloud formations, if inside, note the wording on TV or radio or music."
+        },
+        "signals_si1c": {
+            "text": "If you are experiencing a strong emotion or pain, note where it is within your body.  Go inside that six times."
+        },
+        "signals_si1d": {
+            "text": "Note the clothing you wear, the colour scheme.  Notice that of others."
+        },
+        "signals_si1e": {
+            "text": "What are you being shown?  (There are no coincidences.)"
+        },
+        "signals_si1f": {
+            "text": "What do your children show you?  or your pets?  or characters in books, radio or tv at present?"
+        },
+        "signals_si1g": {
+            "text": "What thoughts keep returning?"
+        },
+        "signals_si1h": {
+            "text": "Now analyse the simplest, most austistic interpretation possible."
+        },
+        "storybusting_sb1a": {
+            "text": "Tell your story of the situation, please."
+        },
+        "storybusting_sb1b": {
+            "text": "Tell your story of the situation, again, please."
+        },
+        "storybusting_sb1": {
+            "text": "and what do you know now?"
+        },
+        "storybusting_sb2a": {
+            "text": "Tell the world around's story of the situation, please."
+        },
+        "storybusting_sb2b": {
+            "text": "Tell the world around's story of the situation, again, please."
+        },
+        "storybusting_sb2c": {
+            "text": "and what do you know now?"
+        },
+        "storybusting_sb3a": {
+            "text": "Tell the story of your relationship with the world around, please."
+        },
+        "storybusting_sb3b": {
+            "text": "Tell the story of your relationship with the world around, again, please."
+        },
+        "storybusting_sb3c": {
+            "text": "and what do you know now?"
+        },
+        "storyanalysis_sa1a": {
+            "text": "Tell the story of the situation"
+        },
+        "storyanalysis_sa1b": {
+            "text": "And, analyse that, please."
+        },
+        "storyanalysis_sa2": {
+            "text": "And, analyse that analysis, please."
+        },
+        "storyanalysis_sa3": {
+            "text": "and what do you know now?"
+        },
+        "critic_cr0": {
+            "text": "Is this 1 criticising, 2 justifying, 3 complaining, 4 judging, 5 analysing 6 excusing 7 commenting 8 lying"
+        },
+        "critic_cr1": {
+            "text": "Make the comment "
+        },
+        "critic_cr2": {
+            "text": "Make the comment "
+        },
+        "critic_cr3": {
+            "text": "and what do you know now?"
+        },
+        "analogue_af1a": {
+            "text": "Choose a person you know."
+        },
+        "analogue_af1b": {
+            "text": "how do they compare themselves to other people?"
+        },
+        "analogue_af1c": {
+            "text": "how do they judge others or themselves?"
+        },
+        "analogue_af1d": {
+            "text": "how are they thinking about others?"
+        },
+        "analogue_af1e": {
+            "text": "how are they feeling about others?"
+        },
+        "analogue_af1f": {
+            "text": "again"
+        },
+        "science_bs1a": {
+            "text": "What was your favourite or easiest subject(s) atschool?    (or, what life areas do you find easy to do?)"
+        },
+        "science_bs1b": {
+            "text": "Write down what you know about each subject (on paper)   (hit return when you're done)"
+        },
+        "science_bs1c": {
+            "text": "What did you enjoy about this subject?"
+        },
+        "science_bs1d": {
+            "text": "What interested you?"
+        },
+        "science_bs1e": {
+            "text": "What does this subject tell you about your business?"
+        },
+        "science_bs2": {
+            "text": "And, what else does this subject tell you about your business?"
+        },
+        "science_bs3a": {
+            "text": "What does this subject need?"
+        },
+        "science_bs3b": {
+            "text": "What did this subject impress upon you?"
+        },
+        "science_bs3c": {
+            "text": "How did you adapt to this subject?"
+        },
+        "science_bs3d": {
+            "text": "What did you learn?"
+        },
+        "science_bs3e": {
+            "text": "How did you refine this learning?"
+        },
+        "science_bs3f": {
+            "text": "How have you used it practically?"
+        },
+        "science_bs3g": {
+            "text": "How have you completed ativities with it?"
+        },
+        "science_bs3h": {
+            "text": "Review what you know now."
+        },
+        "science_bs3i": {
+            "text": "Given what you know about your business, what can you now take from the subject into it?"
+        },
+        "sacrifice_ns1a": {
+            "text": "What is your purpose or aim"
+        },
+        "sacrifice_ns1b": {
+            "text": "What is happening in the world around you?"
+        },
+        "sacrifice_ns1c": {
+            "text": "What tactics are being displayed?"
+        },
+        "sacrifice_ns1d": {
+            "text": "What roles are people taking?"
+        },
+        "sacrifice_ns1e": {
+            "text": "What do their clothing and material goods reveal?"
+        },
+        "sacrifice_ns1f": {
+            "text": "What games are being played?"
+        },
+        "sacrifice_ns1g": {
+            "text": "What are their boundaries and rules?"
+        },
+        "sacrifice_ns1h": {
+            "text": "Who else might share this aim or have a similar aim?"
+        },
+        "sacrifice_ns1i": {
+            "text": "Who is competing with you?"
+        },
+        "sacrifice_ns1j": {
+            "text": "What is your strength, your uniqueness?"
+        },
+        "sacrifice_ns1k": {
+            "text": "Wht strengths complement yours?"
+        },
+        "sacrifice_ns1l": {
+            "text": "Who else has these strenths?"
+        },
+        "sacrifice_ns1m": {
+            "text": "How can these strengths work together?"
+        },
+        "sacrifice_ns1n": {
+            "text": "Which rules can you change? - and which must you leave in place?"
+        },
+        "sacrifice_ns1o": {
+            "text": "What has been sacrificed?"
+        },
+        "sacrifice_ns1p": {
+            "text": "which roles can change or be adapted?"
+        },
+        "sacrifice_ns1q": {
+            "text": "what is the dress code and-or branding?"
+        },
+        "sacrifice_ns1r": {
+            "text": "what new tactics can you introduce?"
+        },
+        "sacrifice_ns1s": {
+            "text": "and then what will be happening?"
+        },
+        "sacrifice_ns1t": {
+            "text": "and then what will not be happening?"
+        },
+        "sacrifice_ns1u": {
+            "text": "How will this fulfill your purpose?"
+        },
+        "sacrifice_ns1v": {
+            "text": "Does this fit a 'we' paradigm?"
+        },
+        "sacrifice_ns1w": {
+            "text": "Is this the best for the world?"
+        },
+        "vent_v1a": {
+            "text": "Make a dummy or use something to represent an aspect of yourself or the 'other'.  Say 'hello'."
+        },
+        "vent_v1b": {
+            "text": "Have a conversation with it (ask about its job etc)"
+        },
+        "vent_v1c": {
+            "text": "Say goodbye and remove it (e.g. from your hand) at the end."
+        },
+        "generative_g1a": {
+            "text": "What is the subject?"
+        },
+        "generative_g2": {
+            "text": "Ask'why?' of each of your first answers."
+        },
+        "generative_g3": {
+            "text": "Ask'what?' of each of your last answers."
+        },
+        "generative_g4": {
+            "text": "Ask'where?' of each of your last answers."
+        },
+        "generative_g5": {
+            "text": "Ask'who?' of each of your last answers."
+        },
+        "generative_g6": {
+            "text": "Ask'how?' of each of your last answers."
+        },
+        "generative_g7": {
+            "text": "Ask'result?' of each of your last answers."
+        },
+        "generative_g8": {
+            "text": "Ask 'frame?' of each of your last answers."
+        },
+        "marketing_ma1a": {
+            "text": "What is the right classroom for your business?"
+        },
+        "marketing_ma1b": {
+            "text": "How do you get the attention of your class?"
+        },
+        "marketing_ma1c": {
+            "text": "How do you keep their attention?"
+        },
+        "marketing_ma1d": {
+            "text": "What learning do you provide?"
+        },
+        "marketing_ma1e": {
+            "text": "How do your class identify with you?"
+        },
+        "marketing_ma1f": {
+            "text": "How do they play with what you give them?"
+        },
+        "marketing_ma1g": {
+            "text": "What result does this have in their lives?"
+        },
+        "marketing_ma1h": {
+            "text": "what is the whole frame?"
+        },
+        "metaphor_m2a": {
+            "text": "Given this story and character ... what colours represent your character or story?"
+        },
+        "metaphor_m2b": {
+            "text": "what signage or logo or flag represents your character or story"
+        },
+        "metaphor_m2c": {
+            "text": "Which clientele will be attracted to these colours and logo-image?"
+        },
+        "releasing_rel1": {
+            "text": "what kind of release?  1. interpersonal, 2. relational, 3. General"
+        },
+        "releasing_rel2": {
+            "text": "speak the following verse, with clear intention on the real meaning of pronouns   Release all on whom you have projected [everyone, everything] from being not [like] you  Release all on who you have projected [everyone, everything] from not being [like] you  Release all from this release  Release all on whom you have projected [everyone, everything] from being [like] you  Release all on who you have projected [everyone, everything] from not being not [like] you  Release all from this release  Turn away."
+        },
+        "clean_space_cs1": {
+            "text": "find another space, outside of the whole area.  What do you now know about it all?"
+        },
+        "turning_tu1": {
+            "text": "turn full circle.  and what do you know now?"
+        },
+        "installing_ins1": {
+            "text": "Become aware of the over-sensitivity that you wish to address.  Notice where in your body you feel it, and notice where you can visualise its strength.  Reach out and touch that place, and feel the control.  Take it in the wrong direction first - stronger, just a little, and then return it to the first position.  Then reduce the strength to the level you desire.  It really is as simple as a volume control knob, and works for tinitus, emotional fields, and any body function, even telepathy, subject to unresolved structures."
+        },
+        "simple_pronoun_sp1": {
+            "text": "and what could be around that "
+        },
+        "nonlexic_sp1": {
+            "text": "and inside, sensing, happens what, now?"
+        },
+        "ib2_ib_1": {
+            "text": "and problem, your attention, bring to"
+        },
+        "ib2_ib_2": {
+            "text": "and that, you know, what about?"
+        },
+        "ib2_ib_3": {
+            "text": "and you, that knows, what about?"
+        },
+        "ib2_ib_4": {
+            "text": "and anything else, you sense, about that?"
+        },
+        "ib2_ib_5": {
+            "text": "and that, you sense, comes from where?"
+        },
+        "ib2_ib_6": {
+            "text": "and, as knowing, now what is happening, as knowing?"
+        },
+        "ib2_ib_7": {
+            "text": "and with you, happens what, now?"
+        },
+        "ib2_ib_8": {
+            "text": "and doing, you sense, anything else?"
+        },
+        "ib3_ib3_1": {
+            "text": "and problem, your attention, bringing to"
+        },
+        "ib3_ib3_2a": {
+            "text": "and that, you know, what about?"
+        },
+        "ib3_ib3_2b": {
+            "text": "and as knowing, now what is happening, as knowing?"
+        },
+        "ib3_ib3_2c": {
+            "text": "and knowing, happens what, now?"
+        },
+        "ib3_ib3_3a": {
+            "text": "and you, that knows, what about?"
+        },
+        "ib3_ib3_3b": {
+            "text": "and as that knowing, now what is happening, as that knowing?"
+        },
+        "ib3_ib3_3c": {
+            "text": "and that knowing, happens what, now?"
+        },
+        "ib3_ib3_4a": {
+            "text": "and anything-else, you sense, about that?"
+        },
+        "ib3_ib3_4b": {
+            "text": "and as sensing anything-else, now what is happening, as sensing anything-else?"
+        },
+        "ib3_ib3_4c": {
+            "text": "and sensing about that, happens what, now?"
+        },
+        "ib3_ib3_5a": {
+            "text": "and that, you sense, comes from where?"
+        },
+        "ib3_ib3_5b": {
+            "text": "and as sensing coming from, now what is happening, as sensing coming from?"
+        },
+        "ib3_ib3_5c": {
+            "text": "and sensing from there, happens what, now?"
+        },
+        "ib3_ib3_6a": {
+            "text": "and, as knowing, you're doing what, now?"
+        },
+        "ib3_ib3_6b": {
+            "text": "and as knowing, doing, now what is happening, as knowing, doing?"
+        },
+        "ib3_ib3_6c": {
+            "text": "and with you, happens what, now?"
+        },
+        "ib3_ib3_7a": {
+            "text": "and, doing, you sense, anything else?"
+        },
+        "ib3_ib3_7b": {
+            "text": "and, adoing, sensing, now what is happening, as doing, sensing?"
+        },
+        "emerging_moving_e1": {
+            "text": "and as you are moving, now what is happening, as you are moving?"
+        },
+        "inging_i1": {
+            "text": "and now what is happening?"
+        },
+        "poetry_ep1": {
+            "text": "A wiggle to settle in, and then she felt right; this was the place, for her issue to face."
+        },
+        "poetry_ep2": {
+            "text": "What lost knowing could Hiyuki weather, what tiny a flower a violet heather?"
+        },
+        "poetry_ep3": {
+            "text": "And within the treasure what does she find, a clue to the next thought she untwined."
+        },
+        "poetry_ep4a": {
+            "text": "'The (background) has knowledge, for sure to be mined.'"
+        },
+        "poetry_ep4b": {
+            "text": "What wears the rock sitting in glade, how does it sit, in sun or shade?"
+        },
+        "poetry_ep4c": {
+            "text": "What know the flowers and the trees, of light and dark and leaves?"
+        },
+        "poetry_ep4d": {
+            "text": "What know the birds and the bees, messengers to please?"
+        },
+        "poetry_ep4e": {
+            "text": "What knows the garden, hedges and all, a paradise set within a wall?"
+        },
+        "poetry_ep4f": {
+            "text": "What kind of world sets the stone, within the paradise not so alone?"
+        },
+        "poetry_ep4g": {
+            "text": "And what of a gardener, designed with care, what knows she of gardening fair?"
+        },
+        "poetry_ep5": {
+            "text": "And what then did she know, a force in full flow?"
+        },
+        "poetry_ep6": {
+            "text": "And where then to be in the garden made free?"
+        },
+        "poetry_ep7": {
+            "text": "Deep in her core, it grows ever more.       THE END"
+        },
+        "rock_solid_rs1": {
+            "text": "Choose a scenario or person or things that you will be meeting or addressing or interacting with, in the future"
+        },
+        "rock_solid_rs1a": {
+            "text": "and as that is happening, now what is happening as that is happening?"
+        },
+        "rock_solid_rs1b": {
+            "text": "and now what happens?"
+        },
+        "rock_solid_rs1c": {
+            "text": "and now what is happening?"
+        },
+        "pulling_back2_1": {
+            "text": "and now what happens?"
+        },
+        "pulling_back2_2a": {
+            "text": "what kind of you were you, before you became like this?"
+        },
+        "pulling_back2_2b": {
+            "text": "and what was happening just before you became like this?"
+        },
+        "pulling_back2_3a": {
+            "text": "what kind of you were you being, just before that?"
+        },
+        "pulling_back2_3b": {
+            "text": "what kind of you were you being, just before that?"
+        },
+        "pulling_back2_4": {
+            "text": "Identify where exactly the beingness went away from ordinariness into pre-problem."
+        },
+        "pulling_back2_5a": {
+            "text": "and what kind of you were you being just before pre-problem and just after ordinariness?"
+        },
+        "pulling_back2_5b": {
+            "text": "and how were you bein, theng?"
+        },
+        "pulling_back2_5c": {
+            "text": "and then what happened?"
+        },
+        "pulling_back2_6": {
+            "text": "and as now aware, now what is happening, as now aware?"
+        },
+        "clean_worlds_cw1": {
+            "text": "Write down you mission in life, as verbosely as you wish. Explore the etymology of key words."
+        },
+        "clean_worlds_cw2": {
+            "text": "Write down every single important moment in your life from birth to now, on separate postits ."
+        },
+        "compensating_co1": {
+            "text": "Compensating: Compensation occurs when someone takes up one behaviour because one cannot accomplish another behaviour.    Think of something as simple as joining an online dating site because one has not met the desired life partner in present life activity, or hiring a gardener because one has no time to do that job oneself.  Notice how some people around you are doing one thing instead of another. Notice how the entire monetary world is in fact a compensation culture - literally to the word.  You might be working only because you cannot live the lifestyle without the income! How many compensations might you have?  They can be useful or debilitating, keep the useful ones!!!"
+        },
+        "compensating_co2": {
+            "text": "Which compensating behaviour?:"
+        },
+        "denying_den1": {
+            "text": "Denying: An ego defence mechanism that operates unconsciously to resolve emotional conflict, and to reduce anxiety by refusing to perceive the more unpleasant aspects of external reality;  Denying fact: This form of denial is where someone avoids a fact by lying. This lying can take the form of an outright falsehood (commission), leaving out certain details in order to tailor a story (omission), or by falsely agreeing to something (assent, also referred to as 'yes-ing' behaviour). Someone who is in denial of fact is typically using lies in order to avoid facts that they think may be potentially painful to themselves or others.  Denying responsibility: This form of denial involves avoiding personal responsibility by blaming, minimizing or justifying. Blaming is a direct statement shifting culpability and may overlap with denial of fact. Minimizing is an attempt to make the effects or results of an action appear to be less harmful than they may actually be. Justifying is when someone takes a choice and attempts to make that choice look okay due to their perception of what is 'right' in a situation. Someone using denial of responsibility is usually attempting to avoid potential harm or pain by shifting attention away from themselves.  Denying impact: Denial of impact involves a person avoiding thinking about or understanding the harms their behaviour have caused to themselves or others. By doing this, that person is able to avoid feeling a sense of guilt and it can prevent that person from developing remorse or empathy for others. Denial of impact reduces or eliminates a sense of pain or harm from poor decisions.  Denying awareness: This type of denial is best discussed by looking at the concept of state dependent learning. People using this type of denial will avoid pain and harm by stating they were in a different state of awareness (such as alcohol or drug intoxication or on occasion mental health related). This type of denial often overlaps with denial of responsibility.  Denying cycle: Many who use this type of denial will say things such as, 'it just happened.' Denial of cycle is where a person avoids looking at their decisions leading up to an event or does not consider their pattern of decision making and how harmful behaviour is repeated. The pain and harm being avoided by this type of denial is more of the effort needed to change the focus from a singular event to looking at preceding events. It can also serve as a way to blame or justify behaviour (see above).  Denying denying: This can be a difficult concept for many people to identify in themselves, but is a major barrier to changing hurtful behaviours. Denial of denial involves thoughts, actions and behaviours which bolster confidence that nothing needs to be changed in ones personal behaviour. This form of denial typically overlaps with all of the other forms of denial, but involves more self-delusion.  How many different things might a person deny? (e.g. responsibility, consequences, blame, truth?)"
+        },
+        "denying_den2": {
+            "text": "Which denying behaviour?:"
+        },
+        "displacing_disp1": {
+            "text": "Displacing: An unconscious defence mechanism, whereby the mind redirects emotion from a \u2018dangerous\u2019 object to a \u2018safe\u2019 object. In psychoanalytic theory, displacement is a defence mechanism that shifts sexual or aggressive impulses to a more acceptable or less threatening target; redirecting emotion to a safer outlet; For instance, some people punch cushions when angry at friends; a college student may snap at their roommate when upset about an exam grade.  Notice how you displaced one thing for another.  How many can you find?"
+        },
+        "displacing_disp2": {
+            "text": "Which displacing behaviour?:"
+        },
+        "dissociating_diss1": {
+            "text": "Dissociating: Separation or postponement of a feeling that normally would accompany a situation or thought.  Freud has a very different inerpretation of this word from Holigral.  We infer dissociation as aspects out of the body or disconnected from the present self  In which situations might you do this? (How many?)"
+        },
+        "dissociating_diss2": {
+            "text": "Which dissociating behaviour?:"
+        },
+        "humour_hum1": {
+            "text": "Humouring: Refocuses attention on the somewhat comical side of the situation as to relieve negative tension; similar to comic relief.  How many situations do you defuse with humour?"
+        },
+        "humouring_hum2": {
+            "text": "Which humouring behaviour?:"
+        },
+        "idealising_ideal1": {
+            "text": "Idealising: Form of denial in which the object of attention is presented as 'all good' masking true negative feelings towards the other.  Who have you idealised?"
+        },
+        "idealising_ideal2": {
+            "text": "Which idealising behaviour?:"
+        },
+        "identifying_ident1": {
+            "text": "Identifying: The unconscious modelling of one's self upon another person's behaviour.  With whom have you identified?"
+        },
+        "identifying_ident2": {
+            "text": "Which identifying behaviour?:"
+        },
+        "introjecting_in1": {
+            "text": "Which introjecting behaviour?:"
+        },
+        "inverting_inv1": {
+            "text": "nverting: Refocusing of aggression or emotions evoked from an external force onto one's self."
+        },
+        "intojecting_inv2": {
+            "text": "Which introjecting behaviour?:"
+        },
+        "intellectualising_int1": {
+            "text": "Intellectualising (isolating): Concentrating on the intellectual components of the situations as to distance oneself from the anxiety provoking emotions associated with these situations;  Intellectualising is a defence mechanism where reasoning is used to block confrontation with an unconscious conflict and its associated emotional stress. It involves removing one's self, emotionally, from a stressful event. Intellectualization is often accomplished through rationalization; rather than accepting reality, one may explain it away to remove one's self.  For example, suppose Jay has been brought up by a strict father, and he feels hurt and angry as a result. Although Jay may have deep feelings of hatred towards his father, when he talks about his childhood, Jay may say: 'Yes, my father was a rather firm person, I suppose I do feel some antipathy towards him even now.'  Jay intellectualizes; he chooses rational and emotionally cool words to describe experiences which are usually emotional and very painful  How many different ways could you intellectualise?"
+        },
+        "intellectualising_int2": {
+            "text": "Which intellectualising behaviour?:"
+        },
+        "projecting_pro1": {
+            "text": "Projecting: Attributing to others, one\u2019s own unacceptable or unwanted thoughts and/or emotions. Projection reduces anxiety in the way that it allows the expression of the impulse or desire without letting the ego recognise it.   Holigral has a VERY different perspective on this.  Nonetheless, how might you have done this - How many different ways?"
+        },
+        "projecting_pro2": {
+            "text": "Which projecting behaviour?:"
+        },
+        "reaction_forming_rf1": {
+            "text": "Reaction forming: The converting of unconscious wishes or impulses that are perceived to be dangerous into their opposites  How many different ways can you do/have you done this?"
+        },
+        "reaction_forming_rf2": {
+            "text": "Which reaction_forming behaviour?:"
+        },
+        "regressing_rg1": {
+            "text": "Regressing: The reversion to an earlier stage of development in the face of unacceptable impulses;  How many ways?"
+        },
+        "reaction_forming_rg2": {
+            "text": "Which regressing behaviour?:"
+        },
+        "repressing_rep1": {
+            "text": "Repressing: The process of pulling thoughts into the unconscious and preventing painful or dangerous thoughts from entering consciousness"
+        },
+        "repressing_rep2": {
+            "text": "Which repressing behaviour?:"
+        },
+        "sublimate_su1": {
+            "text": "Sublimating: The refocusing of psychic energy (which Sigmund Freud believed was limited) away from negative outlets to more positive outlets. These drives which cannot find an outlet are rechanneled. In Freud\u2019s classic theory, erotic energy is only allowed limited expression due to repression, and much of the remainder of a given group\u2019s erotic energy is used to develop its culture and civilisation. Freud considered this defence mechanism the most productive compared to the others that he identified. Sublimation is the process of transforming libido into \u2018socially useful\u2019 achievements, mainly art. Psychoanalysts often refer to sublimation as the only truly successful defence mechanism;  How many ways?"
+        },
+        "sublimating_su2": {
+            "text": "Which sublimating behaviour?:"
+        },
+        "sublimating_sp1": {
+            "text": "Suppressing: The conscious process of pushing thoughts into the preconscious.  How many ways?"
+        },
+        "suppressing_sp2": {
+            "text": "Which suppressing behaviour?:"
+        },
+        "somatising_so1": {
+            "text": "Somatisating: Manifestation of emotional anxiety into physical symptoms.  How many ways? (e.g. sickness)"
+        },
+        "somatising_so2": {
+            "text": "Which somatising behaviour?:"
+        },
+        "splitting_spl1": {
+            "text": "Splitting: Primitive defence mechanism-when a person sees external objects or people as either 'all good' or 'all bad.'  How many ways?"
+        },
+        "splitting_spl2": {
+            "text": "Which splitting behaviour?:"
+        },
+        "substituting_su1": {
+            "text": "Substituting: When a person replaces one feeling or emotion for another.  How many ways?"
+        },
+        "substituting_rf2": {
+            "text": "Which substituting?:"
+        },
+        "undoing_u1": {
+            "text": "Undoing: A person tries to 'undo' a negative or threatening thought by their actions.  How many ways/times?"
+        },
+        "undoing_u2": {
+            "text": "Which undoing behaviour?:"
+        },
+        "freudian_defenses_f1": {
+            "text": "Freudian Self Defence Systems  'Everything that irritates us about others can lead us to an understanding of ourselves.'  Carl Jung  The following 21 defence systems are the classical types and definitions from the work of Sigmund and Anna Freud.  Much of the text is taken from Wikipedia.  I have re-framed every Freudian defense mechanism as a transient verb to avoid fixing labelling by the very projection of measuring.  Because we do share our client\u2019s issue at some level and with some content differences, be very careful: our content is NOT the same as their content, our empathy may be self-reflexive sympathy.   The defence mechanisms should give you plenty of ground for your own personal development.  Everyone and everything that you judge, that you think bad of, that you think well of, that you accept or not, only ever tells you about you!  There is only one of us.    1. Compensating  2. Denying  3. Displacing  4. Dissociating  5. Humouring  6. Idealising  7. Identifying  8. Intellectualising  9. Introjecting 10. Inverting 11. Projecting 12. Rationalising 13. Reaction forming 14. Regressing 15. Repressing 16. Somatisating 17. Splitting 18. Substituting 19. Sublimating 20. Suppressing 21. Undoing  Choose one ..."
+        },
+        "holigral_code_hc1": {
+            "text": "The Holigral Way         'An Empty Vessel Suffers Not.'  These are our principles for living life at one with the world.  They have been developed after years of thought and meditation as to the best practices to enable harmony.  Every rule has its exception - and so do these principles.   1. Cause no harm; this is just good karma for your next life, and so on.  Or cause harm and experience the consequences.  2. Clean up after yourself; this is the only serious rule.  The consequences are anti-social, and I call upon the neighbours and relevant powers to visit the karmic return.  3. Be not serious, except for the purpose of entertaining the non-serious.  Laughter is the natural response to truth.  It is also fine to be serious if you really insist.  4. Know you are perfect as you are, as is everyone else, for they are you.  So whatever you do to them, you only do to yourself, and you WILL be on the receiving end during that life when you are that other person.  This is why harmlessness pays, and good enough reason to be harmless and grateful for other people\u2019s acts of harmlessness.  It is also fine to not be harmless and not to be perfect - there are many times and places where this serves.  5. When asked, you may accept or decline as you wish (yes to the soul, no to manipulation: use discernment).  It is also fine to not use discernment and explore the consequences.  6. Be helping to change something only when asked by someone else, because everything is already perfect. If you wish to change something, work with it; help it to do its job, and it will cease as naturally and effortlessly as possible.  It is also fine to offer to help, and to help without being asked - just don\u2019t expect to have your help accepted - nor to receive any gratitude.  7. Be unattached to your offers being accepted.  \u201cShall I put the light on or not?\u201d  \u201cWould you like a cup of tea?\u201d  It is okay to offer a service, but do so without attached desire, remain equanimous to the response.  It is also fine to be attached - enjoy it.  8. Never be telling anyone how to do their job or activity - unless they asked you first - else you might ruin their learning or incur their wrath.  Every single job or human activity is done by the actor for the purpose of learning about or understanding that activity; they learn by doing.  It is also fine to tell someone - enjoy the consequences.  9. Be neither judging of yourself nor of others.  There is no right or wrong; each actor has attracted the others, and the outcome perfect for all - at the soul level of perception - obviously the personality might not agree.  Paradoxically, therefore, it is fine to be judging if so required by the other actors.10. Be accepting of others as they are, and of yourself as you are; its the only way to assure inner and outer peace, but you can choose who you spend time with - you do not have to consort with anyone.  It is also fine to be non-accepting - enjoy a bit of judgement. 11. Release yourself and others from your interpretations of your perceptions.  You can only see yourself in others.  It is an act of harm to hold even an interpreted perception of another being unless it has been requested.  Notice maybe, but let it pass.  It is also fine to not release - hold on and experience it. 12. Be in the here and now.  When mind arises, let it do its job and return to peace.  Let emotions inform right action and flow out to completion.  It\u2019s also fine to be other than in the here and now - dream of the future and re-think the past. 13. Listen as follows: when a person says \u201cI\u201d without contrivance they are speaking for you - take note; and when a person says \u201cyou\u201d, do not listen - for they are projecting.  The same goes for you: listen when you say \u201cyou\u201d to another person - this is your projection.  This guideline must NOT become manipulated.  Never substitute your natural pronouns usage - own any desire to do so and own any mis-uses and clean them up with the processes, please. 14. Defend the weak against the powerful.  Assume the powerful are corrupt and the weak innocent - until proven otherwise.  Help the weak to help themselves.  It is also fine not to follow the way.  But there are consequences.  For an easy life, follow the way; for more challenge, do not.  This code is what delegates may expect of our facilitators, but we do not expect delegates to follow this code.  Choose an aspect to consider."
+        },
+        "maat_maat2": {
+            "text": "Search your life for how many ways you might have contravened this declaration - we ALL have.  Be thorough, because Ma'At does not allow anyone with a heart heavier than a feather to pass into the Afterlife"
+        },
+        "kings_code_kc1": {
+            "text": "The King's Code   1.Peace is offered to all those who will accept it.  The peace of the gods, returned. 1a. Accept the peace and feel it spread within you.  1b. Offer this peace to others, and credit the source.   2. Cause no harm 2a. see the 42 aspects of the code of Ma'At for examples - below. 2b. to others or to yourself - and especially do not justify the causing of harm.   3. Clean up after yourself 3a. also see the code of Ma\u2019At for what this means (do not pollute the land or the water or the air, do not litter, ...) 3b. This means businesses, governments, armies, people, services and so on.   4. The poor are assumed innocent and the powerful assumed corrupt; 4a. the burden of proof is always on the more powerful party; 4b. if one party is not significantly more powerful then both are saddled with the burden of proof.   5. Co-operate in partnerships and heterarchies 5a. leaders are stewards, who recognise they are the least worthy, in service to their people 5b. buy from a partnership in preference to a company 5c. charging interest is immoral   6. Do not worship the gods, nor beg them for forgiveness; thank them instead 6a. instead: make amends to injured parties, and/or to people who have suffered such abuses as you have perpetrated. 6b. walk your talk; the gods will judge your actions not your words and forgive AFTER atonement. 6c. pray altruistically to them for the betterment of the world - for others; pray not for yourself.   7. No more victim: you are responsible, you have a conscience: use it. 7a. notice your excuses, complaints, rationalisations, justifications, arguments and giving-away of power to others: and stop doing these things. 7b. and no more persecuting; make amends and stop.   8. We are all one, part of the ALL; both individual and collective. 8a. The world is now a multiplicity, not a duality; forget good and evil. 8b. Every being has a unique role; value it.   9. Honour your word.  Speak the truth.  If you are unsure, do not commit; once you do say \u2018yes\u2019 or \u2018no\u2019, follow it through. 9a. Minimise assumptions about others, and about what others say to/about you - take nothing personally. 9b. Publish and follow your code.  Live your life by it.  Choose one of these"
+        },
+        "maat_maat1": {
+            "text": "MA\u2019AT: THE 42 DECLARATIONS OF PURITY  The following principles of Ma\u2019at are the source of the ten commandments, and they serve as well now as 4000 years ago   1. I have not killed, nor bid anyone kill.  2. I have not committed adultery or rape.  3. I have not avenged myself nor burned with rage.  4. I have not caused terror.  5. I have not assaulted anyone nor caused anyone pain.  6. I have not caused misery.  7. I have not done any harm to man or to animals.  8. I have not caused the shedding of tears.  9. I have not wronged the people nor bear them any evil intent. 10. I have not stolen nor taken that which does not belong to me. 11. I have not taken more than my fair share [of food, money, land, possessions]. 12. I have not damaged the crops, the fields, or the trees. 13. I have not deprived anyone of what is rightfully theirs. 14. I have not borne false witness, nor supported false allegations. 15. I have not lied, nor spoken falsely to the hurt of another. 16. I have not used fiery words nor stirred up any strife. 17. I have not spoken nor acted deceitfully to the hurt of another. 18. I have not spoken scornfully against others. 19. I have not eavesdropped. 20. I have not ignored the truth or words of righteousness. 21. I have not judged anyone hastily or harshly. 22. I have not disrespected sacred places [all places are sacred]. 23. I have caused no wrong to be done to any workers or prisoners [to those in my power or under my influence]. 24. I have not been angry without good reason. 25. I have not hindered the flow of running water. 26. I have not wasted the running water. 27. I have not polluted the water or the land. 28. I have not taken God's name in vain [nor anyone else\u2019s]. 29. I have not despised nor angered the gods [not anyone/anything else]. 30. I have not stolen from god [nor from anyone else]. 31. I have not given excessive offerings, nor less than what is due [tax]. 32. I have not coveted my neighbour's goods. 33. I have not stolen from nor disrespect the dead [nor anyone else]. 34. I have remembered and observed the appointed holy days. 35. I have not held back the offerings due to the gods [nor tax]. 36. I have not interfered with sacred rites. 37. I have not slaughtered with evil intent any sacred animals [all animal are sacred]. 38. I have not acted with guile or insolence. 39. I have not been unduly proud nor acted with arrogance. 40. I have not magnified my condition beyond what is appropriate. 41. I have done no less than my daily obligations require. 42. I have obeyed the law and committed no treason.   Choose one of these"
+        },
+        "the_code_code1": {
+            "text": "the codes: 1. The Holigral Code, 2. The King's Code, 3. Ma'At   Choose 1,2 or 3."
+        },
+        "general_1": {
+            "text": "On which word do you place most emphasis?   (type in a number from 1 to 7 please)   ( ... or ...  0  if actually none has the emphasis)"
+        },
+        "checkdone_1": {
+            "text": "please re-summarise the situation in 7 words or less"
+        },
+        "business_1": {
+            "text": "Describe the present business status in 8 words or less"
+        },
+        "business_2": {
+            "text": "Which word has most emphasis? (type in a number: 1 to 8)"
+        },
+        "consulting_c1a": {
+            "text": "1. What is your business' primary need?"
+        },
+        "consulting_c1b": {
+            "text": "2. What is your biggest problem?"
+        },
+        "consulting_c1c": {
+            "text": "3. What is your primary solution?"
+        },
+        "consulting_c1d": {
+            "text": "4. Where is your marketplace?"
+        },
+        "consulting_c1e": {
+            "text": "5. What is your image-brand?"
+        },
+        "consulting_c1f": {
+            "text": "6. Who are your competitors?"
+        },
+        "consulting_c1g": {
+            "text": "7. How are you progressing with your vision?"
+        },
+        "consulting_c1h": {
+            "text": "8. What are your results?"
+        },
+        "consulting_c1i": {
+            "text": "9. What is the cultural background ?"
+        },
+        "personal_pers0": {
+            "text": "Choose one of the following: (enter the number)  1. What do I need? 2. What is the issue? 3. What would I like to evaluate? 4. Describe the situation 5. Seven Words 6. What would I like to have happen? 7. What would I like to let go?"
+        },
+        "personal_pers1": {
+            "text": "What do I need?"
+        },
+        "personal_pers2": {
+            "text": "What is the issue or problem?"
+        },
+        "personal_pers3": {
+            "text": "What would I like to evaluate or review?"
+        },
+        "personal_pers4": {
+            "text": "Please describe the situation:"
+        },
+        "personal_pers5": {
+            "text": "Explain what it is in 7 words:"
+        },
+        "personal_pers6": {
+            "text": "What would I like to have happen?"
+        },
+        "personal_pers7": {
+            "text": "What would I like to let go or end or release?"
+        },
+        "distance_1a": {
+            "text": "Make a list of every want, wish, desire, urge, need that you have.   When done, number them, and type in how many."
+        },
+        "distance_1b": {
+            "text": "Now make a list of every 'don't-want' that you have.   When done, number them, and type in how many."
+        },
+        "choose_ch0": {
+            "text": "choice_string"
+        },
+        "retreat_ret2": {
+            "text": "choose 1. the story of your life, or 2. the remaining big issue(s)"
+        },
+        "main_main2": {
+            "text": "would you like the conversation saved? (y/n)"
+        },
+        "main_main1": {
+            "text": "Hello, and welcome to the Holigral Method.  It will work, tho' sometimes you have to go round the loop a few times, and it may take some time, or use unusual or iterative/recursive questioning.  Sometimes a question might seem odd, just answer it anyway.  Sometimes the choice of process may seem odd.  The story of 'the drunk looking for the keys under the lamp post' applies...  Ground Rules: 1. NOT suitable for sociopaths, nor people undergoing psychotherapy, nor anyone taking/using psychoactive drugs. 2. It only asks questions,  whatever is discovered, and the consequences are entirely the user's responsibility. 3. Tell the truth, if you lie or deceive, of course the process won't work.  4. This is copyright material, belonging to The Holigral Partnership, please respect the inventor.  TYPE IN 'QUIT' to exit at any time to also be able to save the transcript.  And, type in in '?' for help.  These are the starting options:  0: Address my whole life. 1: A Personal Issue. 2: The Holigral Distance Programme. 3: Learning. 4: Reading the Matrix. 5: A Business Issue 6: Awakening / Spiritual Development 7: Cultural Change 8: Re-Start Prior Session   Please type in the number of your choice:"
+        }
+    },
+    "processes": [
+        {
+            "name": "Ancestors",
+            "steps": [
+                "ancestors_anc1a",
+                "ancestors_anc1b",
+                "ancestors_anc1c",
+                "ancestors_anc1d",
+                {
+                    "pattern": [
+                        "ancestors_anc2a",
+                        "ancestors_anc2b",
+                        "ancestors_anc2c"
+                    ],
+                    "repeat": 5
+                },
+                "ancestors_anc3a",
+                "ancestors_anc3b",
+                "ancestors_anc3c",
+                {
+                    "pattern": [
+                        "ancestors_anc4a",
+                        "ancestors_anc4b",
+                        "ancestors_anc4c"
+                    ],
+                    "repeat": 5
+                },
+                "ancestors_anc5",
+                {
+                    "pattern": [
+                        "fwd_sfa",
+                        "fwd_sfb"
+                    ],
+                    "repeat": 6
+                }
+            ]
+        },
+        {
+            "name": "Relating",
+            "steps": [
+                "relating_relB",
+                "relating_relP",
+                "relating_rel1a",
+                "relating_rel1b",
+                "relating_rel1c",
+                "relating_rel2a",
+                "relating_rel2b",
+                "relating_rel2c",
+                "relating_rel2d",
+                "relating_rel3a",
+                "relating_rel3b",
+                "relating_rel3c",
+                "relating_rel4a",
+                "relating_rel4b",
+                "relating_rel4c",
+                "relating_rel5a",
+                "relating_rel5b",
+                "relating_rel5c",
+                "relating_rel5d",
+                "relating_rel6a",
+                "relating_rel6b",
+                "relating_rel6c",
+                "relating_rel7a",
+                "relating_rel7b",
+                "relating_rel7c",
+                "relating_rel7d",
+                "relating_rel7e",
+                "relating_rel7f",
+                "relating_rel8a",
+                "relating_rel8b",
+                "relating_rel8c",
+                "relating_rel8d",
+                "relating_rel8e",
+                "relating_rel8e",
+                "relating_rel8f",
+                "relating_rel8g",
+                "relating_rel8h",
+                "relating_rel8i",
+                "relating_rel8j",
+                "relating_rel9",
+                "relating_rel10",
+                "relating_rel11"
+            ]
+        },
+        {
+            "name": "Re Scaling",
+            "steps": [
+                "rescaling_rs1a",
+                "rescaling_rs1b",
+                "rescaling_rs1c",
+                "rescaling_rs1d",
+                {
+                    "pattern": [
+                        "rescaling_rs2a",
+                        "rescaling_rs2b",
+                        "rescaling_rs2c",
+                        "rescaling_rs2d"
+                    ],
+                    "repeat": 6
+                },
+                "rescaling_rs3"
+            ]
+        },
+        {
+            "name": "Distance Ib",
+            "steps": [
+                "saturday_saa",
+                "saturday_saa",
+                "sunday_su1",
+                {
+                    "pattern": [
+                        "sunday_su2"
+                    ],
+                    "repeat": 5
+                },
+                "sunday_su7",
+                "sunday_su1",
+                {
+                    "pattern": [
+                        "sunday_su2"
+                    ],
+                    "repeat": 5
+                },
+                "sunday_su7",
+                "monday_mo1",
+                {
+                    "pattern": [
+                        "monday_mo2"
+                    ],
+                    "repeat": 5
+                },
+                "monday_mo7",
+                "monday_mo1",
+                {
+                    "pattern": [
+                        "monday_mo2"
+                    ],
+                    "repeat": 5
+                },
+                "monday_mo7",
+                {
+                    "pattern": [
+                        "tuesday_tu2"
+                    ],
+                    "repeat": 6
+                },
+                "tuesday_tu7",
+                {
+                    "pattern": [
+                        "tuesday_tu2"
+                    ],
+                    "repeat": 6
+                },
+                "tuesday_tu7",
+                {
+                    "pattern": [
+                        "wednesday_wed2"
+                    ],
+                    "repeat": 6
+                },
+                "wednesday_wed7",
+                {
+                    "pattern": [
+                        "wednesday_wed2"
+                    ],
+                    "repeat": 6
+                },
+                "wednesday_wed7",
+                {
+                    "pattern": [
+                        "thursday_th2"
+                    ],
+                    "repeat": 6
+                },
+                "thursday_th7",
+                {
+                    "pattern": [
+                        "thursday_th2"
+                    ],
+                    "repeat": 6
+                },
+                "thursday_th7",
+                {
+                    "pattern": [
+                        "friday_f1"
+                    ],
+                    "repeat": 6
+                },
+                {
+                    "pattern": [
+                        "friday_f1"
+                    ],
+                    "repeat": 6
+                }
+            ]
+        },
+        {
+            "name": "Nonlexic Pronoun",
+            "steps": [
+                "nonlexic_sp1",
+                "nonlexic_sp1",
+                "nonlexic_sp1",
+                "nonlexic_sp1",
+                "nonlexic_sp1"
+            ]
+        },
+        {
+            "name": "Pronoun",
+            "steps": [
+                "pronoun_control_1"
+            ]
+        },
+        {
+            "name": "Simple Pronoun",
+            "steps": [
+                "simple_pronoun_sp1",
+                "simple_pronoun_sp1",
+                "simple_pronoun_sp1"
+            ]
+        },
+        {
+            "name": "Turning",
+            "steps": [
+                "turning_tu1",
+                "turning_tu1",
+                {
+                    "pattern": [
+                        "turning_tu1"
+                    ],
+                    "repeat": 7
+                }
+            ]
+        },
+        {
+            "name": "Betweens",
+            "steps": [
+                "betweens_b1a",
+                "betweens_b1b",
+                {
+                    "pattern": [
+                        "betweens_b2"
+                    ],
+                    "repeat": 5
+                },
+                "betweens_3",
+                "betweens_b4",
+                {
+                    "pattern": [
+                        "betweens_b5"
+                    ],
+                    "repeat": 5
+                },
+                "betweens_b6"
+            ]
+        },
+        {
+            "name": "Critic Busting",
+            "steps": [
+                "critic_cr0",
+                "critic_cr1",
+                {
+                    "pattern": [
+                        "critic_cr2"
+                    ],
+                    "repeat": 6
+                },
+                "critic_cr3"
+            ]
+        },
+        {
+            "name": "Freudian Defenses",
+            "steps": [
+                "freudian_defenses_f1"
+            ]
+        },
+        {
+            "name": "Installing",
+            "steps": [
+                "installing_ins1"
+            ]
+        },
+        {
+            "name": "The Code",
+            "steps": [
+                "the_code_code1"
+            ]
+        },
+        {
+            "name": "Clean Space",
+            "steps": [
+                "clean_space_cs1",
+                "clean_space_cs1",
+                {
+                    "pattern": [
+                        "clean_space_cs1"
+                    ],
+                    "repeat": 7
+                },
+                "clean_space_cs1",
+                "clean_space_cs1"
+            ]
+        },
+        {
+            "name": "Deinterleaving",
+            "steps": [
+                "deint_de1a",
+                "deint_de1b",
+                "deint_de1c",
+                "deint_de1e",
+                "deint_de1f"
+            ]
+        },
+        {
+            "name": "Marketing",
+            "steps": [
+                "marketing_ma1a",
+                "marketing_ma1b",
+                "marketing_ma1c",
+                "marketing_ma1d",
+                "marketing_ma1e",
+                "marketing_ma1f",
+                "marketing_ma1g",
+                "marketing_ma1h"
+            ]
+        },
+        {
+            "name": "Metaphor",
+            "steps": [
+                "metaphor_m2a",
+                "metaphor_m2b",
+                "metaphor_m2c"
+            ]
+        },
+        {
+            "name": "Perceptual Space",
+            "steps": [
+                "perceptual_ps1a",
+                "perceptual_ps1b",
+                "perceptual_ps1c",
+                "perceptual_ps1d",
+                "perceptual_ps1e",
+                "perceptual_ps1f",
+                {
+                    "pattern": [
+                        "perceptual_ps2a",
+                        "perceptual_ps2b",
+                        "perceptual_ps2c"
+                    ],
+                    "repeat": 6
+                },
+                "perceptual_ps3a",
+                "perceptual_ps3b"
+            ]
+        },
+        {
+            "name": "Story Analysis",
+            "steps": [
+                "storyanalysis_sa1a",
+                "storyanalysis_sa1b",
+                {
+                    "pattern": [
+                        "storyanalysis_sa2"
+                    ],
+                    "repeat": 5
+                },
+                "storyanalysis_sa3"
+            ]
+        },
+        {
+            "name": "Story Busting",
+            "steps": [
+                "storybusting_sb1a",
+                {
+                    "pattern": [
+                        "storybusting_sb1b"
+                    ],
+                    "repeat": 5
+                },
+                "storybusting_sb1",
+                "storybusting_sb2a",
+                {
+                    "pattern": [
+                        "storybusting_sb2b"
+                    ],
+                    "repeat": 5
+                },
+                "storybusting_sb2c",
+                "storybusting_sb3a",
+                {
+                    "pattern": [
+                        "storybusting_sb3b"
+                    ],
+                    "repeat": 5
+                },
+                "storybusting_sb3c"
+            ]
+        },
+        {
+            "name": "Story Insight",
+            "steps": [
+                "story_insight_sti1a",
+                "story_insight_sti1a",
+                "story_insight_sti1b",
+                "story_insight_sti1c",
+                "story_insight_sti1d",
+                "story_insight_sti1e",
+                "story_insight_sti1f",
+                "story_insight_sti1g",
+                "story_insight_sti1g",
+                "story_insight_sti1h",
+                "story_insight_sti1i",
+                "story_insight_sti1j",
+                "story_insight_sti1k",
+                "story_insight_sti1l",
+                "story_insight_sti1m"
+            ]
+        },
+        {
+            "name": "Clean Worlds",
+            "steps": [
+                "clean_worlds_cw1",
+                "clean_worlds_cw2"
+            ]
+        },
+        {
+            "name": "Pulling Back",
+            "steps": [
+                "pulling_pb1",
+                {
+                    "pattern": [
+                        "pulling_pb2"
+                    ],
+                    "repeat": 6
+                },
+                "pulling_pb3a",
+                "pulling_pb3b",
+                "pulling_pb3c",
+                "pulling_pb3d",
+                {
+                    "pattern": [
+                        "thursday_th2"
+                    ],
+                    "repeat": 6
+                },
+                "thursday_th7"
+            ]
+        },
+        {
+            "name": "Pulling Back2",
+            "steps": [
+                "pulling_back2_1",
+                "pulling_back2_2a",
+                "pulling_back2_2b",
+                {
+                    "pattern": [
+                        "pulling_back2_3a",
+                        "pulling_back2_3b"
+                    ],
+                    "repeat": 6
+                },
+                "pulling_back2_4",
+                "pulling_back2_5a",
+                "pulling_back2_5b",
+                "pulling_back2_5c",
+                {
+                    "pattern": [
+                        "pulling_back2_6",
+                        "pulling_back2_1"
+                    ],
+                    "repeat": 6
+                }
+            ]
+        },
+        {
+            "name": "Rock Solid",
+            "steps": [
+                "rock_solid_rs1",
+                "rock_solid_rs1a",
+                "rock_solid_rs1b",
+                "rock_solid_rs1c",
+                {
+                    "pattern": [
+                        "rock_solid_rs1a",
+                        "rock_solid_rs1b",
+                        "rock_solid_rs1c"
+                    ],
+                    "repeat": 6
+                }
+            ]
+        },
+        {
+            "name": "Truth",
+            "steps": [
+                "truth_t1",
+                {
+                    "pattern": [
+                        "truth_t2"
+                    ],
+                    "repeat": 5
+                },
+                "truth_t3",
+                "truth_t4",
+                {
+                    "pattern": [
+                        "truth_t5",
+                        "truth_t6",
+                        "truth_t7"
+                    ],
+                    "repeat": 5
+                },
+                "truth_t8",
+                {
+                    "pattern": [
+                        "truth_t9"
+                    ],
+                    "repeat": 7
+                },
+                "truth_tA"
+            ]
+        },
+        {
+            "name": "Ventriloquism",
+            "steps": [
+                "vent_v1a",
+                "vent_v1b",
+                "vent_v1c"
+            ]
+        },
+        {
+            "name": "Boolean",
+            "steps": [
+                "boolean_bo1a",
+                "boolean_bo1b",
+                "boolean_bo1c",
+                "boolean_bo1d",
+                "boolean_bo1e",
+                "boolean_bo1f",
+                "boolean_bo1g",
+                "boolean_bo1h"
+            ]
+        },
+        {
+            "name": "Business Science",
+            "steps": [
+                "science_bs1a",
+                "science_bs1b",
+                "science_bs1c",
+                "science_bs1d",
+                "science_bs1e",
+                {
+                    "pattern": [
+                        "science_bs2"
+                    ],
+                    "repeat": 5
+                },
+                "science_bs3a",
+                "science_bs3b",
+                "science_bs3c",
+                "science_bs3d",
+                "science_bs3e",
+                "science_bs3f",
+                "science_bs3g",
+                "science_bs3h",
+                "science_bs3i"
+            ]
+        },
+        {
+            "name": "Emerging Moving",
+            "steps": [
+                "emerging_moving_e1",
+                "emerging_moving_e1"
+            ]
+        },
+        {
+            "name": "Habit Busting",
+            "steps": [
+                "habit_ha1",
+                {
+                    "pattern": [
+                        "habit_ha2a",
+                        "habit_ha2b"
+                    ],
+                    "repeat": 7
+                },
+                "habit_ha3a",
+                "habit_ha3b"
+            ]
+        },
+        {
+            "name": "Inging",
+            "steps": [
+                "inging_i1",
+                "inging_i1"
+            ]
+        },
+        {
+            "name": "Scenarios",
+            "steps": [
+                "scenarios_sc1",
+                "saturday_saa",
+                "sunday_su1",
+                {
+                    "pattern": [
+                        "sunday_su2"
+                    ],
+                    "repeat": 5
+                },
+                "sunday_su7",
+                "monday_mo1",
+                {
+                    "pattern": [
+                        "monday_mo2"
+                    ],
+                    "repeat": 5
+                },
+                "monday_mo7",
+                {
+                    "pattern": [
+                        "tuesday_tu2"
+                    ],
+                    "repeat": 6
+                },
+                "tuesday_tu7",
+                {
+                    "pattern": [
+                        "wednesday_wed2"
+                    ],
+                    "repeat": 6
+                },
+                "wednesday_wed7",
+                "scenarios_sc2",
+                {
+                    "pattern": [
+                        "scenarios_sc3a",
+                        "scenarios_sc3b"
+                    ],
+                    "repeat": 6
+                },
+                "scenarios_sc4",
+                {
+                    "pattern": [
+                        "thursday_th2"
+                    ],
+                    "repeat": 6
+                },
+                "thursday_th7",
+                {
+                    "pattern": [
+                        "friday_f1"
+                    ],
+                    "repeat": 6
+                }
+            ]
+        },
+        {
+            "name": "Emergent Poetry",
+            "steps": [
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep1",
+                "poetry_ep2",
+                "poetry_ep2",
+                "poetry_ep2",
+                "poetry_ep2",
+                "poetry_ep2",
+                "poetry_ep2",
+                "poetry_ep2",
+                "poetry_ep3",
+                "poetry_ep3",
+                "poetry_ep3",
+                "poetry_ep3",
+                "poetry_ep3",
+                "poetry_ep3",
+                "poetry_ep3",
+                "poetry_ep4a",
+                "poetry_ep4b",
+                "poetry_ep4c",
+                "poetry_ep4d",
+                "poetry_ep4e",
+                "poetry_ep4f",
+                "poetry_ep4g",
+                "poetry_ep5",
+                "poetry_ep5",
+                "poetry_ep5",
+                "poetry_ep5",
+                "poetry_ep5",
+                "poetry_ep5",
+                "poetry_ep5",
+                "poetry_ep6",
+                "poetry_ep6",
+                "poetry_ep6",
+                "poetry_ep6",
+                "poetry_ep6",
+                "poetry_ep6",
+                "poetry_ep6",
+                "poetry_ep6",
+                "poetry_ep7",
+                "poetry_ep7",
+                "poetry_ep7",
+                "poetry_ep7",
+                "poetry_ep7",
+                "poetry_ep7",
+                "poetry_ep7"
+            ]
+        },
+        {
+            "name": "No Sacrifices",
+            "steps": [
+                "sacrifice_ns1a",
+                "sacrifice_ns1b",
+                "sacrifice_ns1c",
+                "sacrifice_ns1d",
+                "sacrifice_ns1e",
+                "sacrifice_ns1f",
+                "sacrifice_ns1g",
+                "sacrifice_ns1h",
+                "sacrifice_ns1i",
+                "sacrifice_ns1j",
+                "sacrifice_ns1k",
+                "sacrifice_ns1l",
+                "sacrifice_ns1m",
+                "sacrifice_ns1n",
+                "sacrifice_ns1o",
+                "sacrifice_ns1p",
+                "sacrifice_ns1q",
+                "sacrifice_ns1r",
+                "sacrifice_ns1s",
+                "sacrifice_ns1t",
+                "sacrifice_ns1u",
+                "sacrifice_ns1v",
+                "sacrifice_ns1w"
+            ]
+        },
+        {
+            "name": "Releasing",
+            "steps": [
+                "releasing_rel1",
+                "releasing_rel2",
+                "releasing_rel2",
+                "releasing_rel2"
+            ]
+        },
+        {
+            "name": "Job Profile",
+            "steps": [
+                "job_profile_jp0",
+                {
+                    "pattern": [],
+                    "repeat": 10
+                },
+                {
+                    "pattern": [
+                        "job_profile_jp1",
+                        "job_profile_jp1",
+                        "job_profile_jp1"
+                    ],
+                    "repeat": 10
+                },
+                {
+                    "pattern": [],
+                    "repeat": 10
+                },
+                {
+                    "pattern": [],
+                    "repeat": 10
+                }
+            ]
+        },
+        {
+            "name": "Retreat",
+            "steps": [
+                "retreat_ret2"
+            ]
+        }
+    ]
+}

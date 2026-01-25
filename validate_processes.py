@@ -44,8 +44,24 @@ def validate():
                 elif isinstance(step, dict):
                     # Check Inline Pattern
                     if "pattern" in step:
-                        for k in step["pattern"]:
-                            check_key(k, context=f"Process '{p_name}' (Inline Pattern)")
+                        def check_recursive(item, ctx):
+                            if isinstance(item, str):
+                                check_key(item, context=ctx)
+                            elif isinstance(item, list):
+                                for sub in item:
+                                    check_recursive(sub, ctx)
+                            elif isinstance(item, dict):
+                                # If the item is a dict inside a pattern list, it might be a nested step definition
+                                # We should check if it has a "pattern" or just extract keys?
+                                # Based on "processes.json" structure (e.g. repeat blocks), 
+                                # the dict likely has keys like "pattern", "repeat"
+                                if "pattern" in item:
+                                    check_recursive(item["pattern"], ctx)
+                                # If it has steps?
+                                if "steps" in item:
+                                    check_recursive(item["steps"], ctx)
+
+                        check_recursive(step["pattern"], f"Process '{p_name}' (Inline Pattern)")
                             
     # 2. Check Closing Questions
     closing = data.get("closing_questions", [])
