@@ -504,6 +504,8 @@ class TTSEngine:
         file_path = os.path.join(self.cache_dir, filename)
         
         # Check cache
+        if os.path.exists(file_path):
+            return file_path
             
         try:
             
@@ -513,6 +515,8 @@ class TTSEngine:
             
             asyncio.run(_generate())
             
+            if os.path.exists(file_path):
+                return file_path
         except Exception as e:
             print(f"Edge-TTS Request Failed: {e}. Falling back to gTTS...", flush=True)
             # Fallback to gTTS if Edge-TTS fails
