@@ -3,6 +3,9 @@
         "compare": {
             "text": "And compare that to where you are now."
         },
+        "acyxt": {
+            "text": "And could you '[conditionalprocessing]' that?"
+        },
         "aitaeat": {
             "text": "And is there anything else about that?"
         },
@@ -12,20 +15,17 @@
         "atwch": {
             "text": "And then what can happen?"
         },
+        "aweirtwycx": {
+            "text": "And what [else] is reciprocal to what you could '[conditionalprocessing]'?"
+        },
         "awmygft": {
             "text": "And want must you get from that?"
         },
-        "awcyx": {
-            "text": "And what could you '[conditionalprocessing]'?"
-        },
-        "awcynx": {
-            "text": "And what could you not '[conditionalprocessing]'?"
-        },
         "awecyx": {
-            "text": "And what else could you '[conditionalprocessing]'?"
+            "text": "And what [else] could you '[conditionalprocessing]'?"
         },
         "awecynx": {
-            "text": "And what else could you not '[conditionalprocessing]'?"
+            "text": "And what [else] could you not '[conditionalprocessing]'?"
         },
         "awdykat": {
             "text": "And what do you know about that?"
@@ -183,20 +183,18 @@
             "name": "Issue Buster",
             "steps": [
                 "awwyltwon",
-                "awdykat",
                 {
                     "pattern": [
                         "awedykat"
                     ],
-                    "repeat": 5
+                    "repeat": 6
                 },
                 "awdykn",
-                "awdtkay",
                 {
                     "pattern": [
                         "awedtkay"
                     ],
-                    "repeat": 5
+                    "repeat": 6
                 },
                 "awdykn",
                 {
@@ -243,15 +241,36 @@
                 {
                     "iterate_assessment": "conditionalprocessing",
                     "pattern": [
-                        "awcyx",
-                        "awcynx"
+                        "awecyx",
+                        "awecynx"
+                    ],
+                    "repeat": -1
+                }
+            ]
+        },
+        {
+            "name": "Reciprocal Processing",
+            "steps": [
+                {
+                    "iterate_assessment": "conditionalprocessing",
+                    "pattern": [
+                        "awaynwx",
+                        "awiydfx",
+                        "awitddfx"
                     ]
                 },
                 {
                     "iterate_assessment": "conditionalprocessing",
                     "pattern": [
                         "awecyx",
-                        "awecynx"
+                        {
+                            "pattern": [
+                                "awewirtwycx",
+                                "acyxt"
+                            ],
+                            "repeat": -1,
+                            "is_break_prompt": true
+                        }
                     ],
                     "repeat": -1
                 }

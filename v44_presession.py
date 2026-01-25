@@ -1,5 +1,6 @@
 
 import threading
+import pygame
 import collections
 import csv
 import time
@@ -114,6 +115,7 @@ process_in_closing_phase = False # [NEW]
 current_q_set = ""
 current_q_id = ""
 current_q_text = ""
+current_step_obj = None # [NEW]
 
 # [NEW] User Management Globals
 current_user_id = None
@@ -999,14 +1001,32 @@ if __name__ == "__main__":
             update_zoom_ui()
         
         # [NEW] Process Input Hook
-        elif process_waiting_for_input and event.key in [' ', 'enter']:
-            process_waiting_for_input = False
-            log_event("PROCESS_USER_ADVANCE")
+        elif process_waiting_for_input:
+            is_break_prompt = current_step_obj.get('is_break_prompt', False) if current_step_obj else False
             
-            if process_ending_phase:
-                 finish_process_session()
-            else:
-                 advance_process_step()
+            if is_break_prompt:
+                key_low = event.key.lower()
+                if key_low == 'y':
+                    process_waiting_for_input = False
+                    log_event("PROCESS_LOOP_BREAK")
+                    log_msg("Break detected (Y)")
+                    break_loop()
+                elif key_low == 'n':
+                    process_waiting_for_input = False
+                    log_event("PROCESS_LOOP_CONTINUE")
+                    log_msg("Continue detected (N)")
+                    advance_process_step()
+                else:
+                    # Ignore other keys during break prompt
+                    pass
+            elif event.key in [' ', 'enter']:
+                process_waiting_for_input = False
+                log_event("PROCESS_USER_ADVANCE")
+                
+                if process_ending_phase:
+                    finish_process_session()
+                else:
+                    advance_process_step()
             
         # [NEW] Spacebar auto-sets TA Center to current value
         elif event.key == ' ':
@@ -1112,7 +1132,6 @@ if __name__ == "__main__":
                  # [FIX] Noise Floor (0.001): Block micro-jitter
                  if diff > 0.001 and (not calib_mode or calib_phase == 3): 
                      ta_accum += diff
-                     print(f"[TA] Accumulating Drop: +{diff:.3f} (Total: {ta_accum:.2f})")
         
         if force_pivot:
              CALIB_PIVOT_TA = max(0.1, val)
@@ -1398,6 +1417,29 @@ if __name__ == "__main__":
          dlg.geometry(f"+{x}+{y}")
          dlg.transient(); dlg.grab_set()
 
+    def break_loop():
+        """Skips remaining steps in the current compiled loop."""
+        global process_step_idx, current_step_obj, active_process_data, process_in_closing_phase
+        if not current_step_obj or not active_process_data or process_in_closing_phase:
+             advance_process_step()
+             return
+        
+        loop_id = current_step_obj.get('loop_id')
+        if not loop_id:
+             log_msg("Warning: Break requested but no loop_id found at this step.")
+             advance_process_step()
+             return
+             
+        steps = active_process_data.get('steps', [])
+        # Iterate until we find something that does NOT belong to this loop ID (hierarchical)
+        while process_step_idx < len(steps):
+             target_id = steps[process_step_idx].get('loop_id', "")
+             if not target_id.startswith(loop_id):
+                  break
+             process_step_idx += 1
+        
+        advance_process_step()
+
     def trigger_closing_sequence():
         """Interrupts current process and jumps to closing questions."""
         global process_in_closing_phase, process_step_idx, process_waiting_for_input, process_ending_phase
@@ -1434,6 +1476,7 @@ if __name__ == "__main__":
         global process_step_idx, process_waiting_for_input, active_event_label
         global active_process_data, process_in_closing_phase
         global current_q_set, current_q_id, current_q_text # [NEW]
+        global current_step_obj # [NEW]
         
         # Decide source of steps
         if process_in_closing_phase:
@@ -1456,8 +1499,15 @@ if __name__ == "__main__":
             
         # Get Step
         step = steps[process_step_idx]
+        current_step_obj = step # [NEW]
         text = step.get('text', "")
         audio_file = step.get('audio_file', "")
+        
+        # [NEW] Break Prompt Check
+        is_break = step.get('is_break_prompt', False)
+        display_text = text
+        if is_break:
+             display_text += "\n(Y/N)"
         
         # [NEW] Extract Metadata
         current_q_set = step.get('set', "")
@@ -1467,7 +1517,7 @@ if __name__ == "__main__":
         # Visuals
         log_msg(f"[{prefix}] {process_step_idx+1}: {text}")
         if 'txt_process_overlay' in ui_refs:
-            ui_refs['txt_process_overlay'].set_text(text)
+            ui_refs['txt_process_overlay'].set_text(display_text)
             ui_refs['txt_process_overlay'].set_color('#FFCC00') # Orange/Gold
             ui_refs['txt_process_overlay'].set_fontsize(13) # [MOD] Smaller instruction
             ui_refs['txt_process_overlay'].set_visible(True)
@@ -1496,26 +1546,6 @@ if __name__ == "__main__":
                     advance_process_step()
             threading.Thread(target=_auto_adv_task, daemon=True).start()
 
-    def trigger_closing_sequence():
-        """Interrupts current process and jumps to closing questions."""
-        global process_in_closing_phase, process_step_idx, process_waiting_for_input, process_ending_phase
-        
-        # Only trigger if we are inside a process (or running)
-        # If already closing, do nothing? Or restart closing?
-        if process_ending_phase: return # Already done
-        
-        print("[Process] Triggering Closing Sequence...", flush=True)
-        log_msg("Initiating Closing Sequence...")
-        
-        process_in_closing_phase = True
-        process_ending_phase = False # Reset this if we were at the end
-        process_waiting_for_calib = False # Force out of calib wait
-        
-        # Reset index to 0 of closing list
-        process_step_idx = 0
-        
-        # Start immediately
-        advance_process_step()
 
     def enter_process_ending_phase():
         """Shows session complete message and waits for final confirmation."""
@@ -1734,6 +1764,16 @@ if __name__ == "__main__":
         dlg.wait_window()
         
         if user_choice[0] == "start":
+             # [NEW] Audio Audit (ensure playback is ready if requested)
+             if audio_var.get():
+                 if not pygame.mixer.get_init():
+                     try: pygame.mixer.init()
+                     except: pass
+                 if not pygame.mixer.get_init():
+                     log_msg("WARNING: Audio requested but output device NOT opened.")
+                 else:
+                     log_msg("Audio output device verified.")
+
              # START LOGIC
              start_actual_recording()
              pending_rec = True
@@ -2130,7 +2170,6 @@ if __name__ == "__main__":
             import sounddevice as sd
             sd.stop()
             
-            import pygame
             if pygame.mixer.get_init():
                 pygame.mixer.music.stop()
                 pygame.mixer.quit()
@@ -2138,13 +2177,24 @@ if __name__ == "__main__":
             time.sleep(1.0) # Give OS time to release resources
             
             # 2. Re-Init
-            pygame.mixer.init()
+            try:
+                pygame.mixer.init()
+            except Exception as me:
+                log_msg(f"Mixer Init Fail: {me}")
+
             if audio_handler:
                 audio_handler.selected_device_idx = None # Force re-probe
                 audio_handler.sync_audio_stream(target_view='settings')
             
+            # [NEW] Ensure ProcessRunner also sees the new mixer
+            if process_runner:
+                process_runner._check_mixer()
+            
             log_msg("AUDIO RESET COMPLETE.")
-            speak_confirmation("Audio hardware reset successful.")
+            if pygame.mixer.get_init():
+                speak_confirmation("Audio hardware reset successful.")
+            else:
+                log_msg("CRITICAL: Audio output failed to re-open.")
         except Exception as e:
             log_msg(f"Reset Err: {e}")
 
@@ -3148,7 +3198,6 @@ if __name__ == "__main__":
         except: pass
         
         try:
-             import pygame
              if pygame.mixer.get_init():
                   pygame.mixer.music.stop()
                   pygame.mixer.quit()

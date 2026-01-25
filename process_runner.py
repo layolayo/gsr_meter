@@ -12,6 +12,11 @@ from pathlib import Path
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
+# [NEW] Safety Constants
+INFINITE_REPEAT_DEFAULT = 100
+INNER_INFINITE_REPEAT_DEFAULT = 25
+SAFE_MAX_STEPS = 10000
+
 class ProcessRunner:
     def __init__(self, processes_file):
         """Initialize the ProcessRunner with a JSON configuration file."""
@@ -177,21 +182,23 @@ class ProcessRunner:
             
         return p['steps']
 
-    def compile_process(self, structure, selection_map=None):
-        """Compiles a process list from a structure definition."""
+    def compile_process(self, structure, selection_map=None, substitution_map=None, depth=0, parent_loop_id=None, usage_counts=None):
+        """Compiles a process list from a structure definition. Supports recursion."""
         steps = []
+        if substitution_map is None:
+            substitution_map = {}
+        if usage_counts is None:
+             usage_counts = {} # Key: Question Key, Value: Count
+        
+        # Determine effective "infinity"
+        inf_limit = INFINITE_REPEAT_DEFAULT if depth == 0 else INNER_INFINITE_REPEAT_DEFAULT
         
         # Check for Assessment Iteration
-        # "iterate_assessment": "list_name"
-        # "pattern": ["question_key_with_[placeholder]"]
-        
         iter_key = structure.get('iterate_assessment')
         if iter_key and iter_key in self.assessments:
              # [MOD] CHECK SELECTION MAP
              assess_list = self.assessments[iter_key]
              if selection_map and iter_key in selection_map:
-                  # Filter list based on user choice
-                  # selection_map[key] should be a single item or list
                   sel = selection_map[iter_key]
                   if isinstance(sel, str): assess_list = [sel]
                   elif isinstance(sel, list): assess_list = sel
@@ -202,51 +209,138 @@ class ProcessRunner:
              
              pattern = structure.get('pattern', [])
              repeat_count = structure.get('repeat', 1) 
-             # [MOD] Semantic Infinity
-             if repeat_count == -1: repeat_count = 10000
+             is_break_requested = structure.get('is_break_prompt', False)
              
-             for r in range(repeat_count): # [MOD] Outer Repeat Loop
+             if repeat_count == -1: repeat_count = inf_limit
+             
+             import uuid
+             my_uuid = str(uuid.uuid4())[:8] if is_break_requested else None
+             effective_loop_id = (parent_loop_id + "." if parent_loop_id else "") + my_uuid if my_uuid else parent_loop_id
+             
+             for r in range(repeat_count):
+                 total_pattern_steps = len(assess_list) * len(pattern)
+                 current_pattern_idx = 0
                  for idx, item in enumerate(assess_list):
-                      for pat_key in pattern:
-                           # Resolve Key
+                      # Update substitution map for this item
+                      local_substitution = substitution_map.copy()
+                      local_substitution[iter_key] = item
+                      
+                      for pat_item in pattern:
+                           current_pattern_idx += 1
+                           
+                           if isinstance(pat_item, dict) and ('pattern' in pat_item or 'iterate_assessment' in pat_item):
+                                # Recursive call for nested patterns
+                                sub_steps = self.compile_process(pat_item, selection_map, local_substitution, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts)
+                                steps.extend(sub_steps)
+                                if len(steps) >= SAFE_MAX_STEPS:
+                                     print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
+                                     return steps[:SAFE_MAX_STEPS]
+                                continue
+
+                           # Resolve Key/Step
                            base_step = None
-                           if isinstance(pat_key, str) and pat_key in self.question_library:
-                                base_step = self.question_library[pat_key].copy()
-                           elif isinstance(pat_key, dict):
-                                base_step = pat_key.copy()
+                           q_key = None
+                           if isinstance(pat_item, str) and pat_item in self.question_library:
+                                q_key = pat_item
+                                base_step = self.question_library[pat_item].copy()
+                           elif isinstance(pat_item, dict):
+                                q_key = pat_item.get('key')
+                                if q_key and q_key in self.question_library:
+                                     base_step = self.question_library[q_key].copy()
+                                     base_step.update({k:v for k,v in pat_item.items() if k != 'key'})
+                                else:
+                                     base_step = pat_item.copy()
                            
                            if base_step:
                                 # Perform Substitution
                                 txt = base_step.get('text', "")
-                                updated_txt = txt.replace(f"[{iter_key}]", item)
-                                base_step['text'] = updated_txt
+                                for skey, sval in local_substitution.items():
+                                     txt = txt.replace(f"[{skey}]", sval)
+                                # [NEW] Dynamic [else] Substitution
+                                if q_key:
+                                     usage_counts[q_key] = usage_counts.get(q_key, 0) + 1
+                                     else_str = "else " if usage_counts[q_key] > 1 else ""
+                                     txt = txt.replace("[else]", else_str)
+                                     
+                                base_step['text'] = txt
                                 
                                 # Metadata
                                 base_step['set'] = str(idx + 1)
                                 base_step['assessment_item'] = item
+                                
+                                if is_break_requested:
+                                     base_step['loop_id'] = effective_loop_id
+                                     if current_pattern_idx == total_pattern_steps:
+                                          base_step['is_break_prompt'] = True
+                                          
                                 steps.append(base_step)
+                                if len(steps) >= SAFE_MAX_STEPS:
+                                     print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
+                                     return steps
              return steps
 
-        # Standard Repeat Logic
+        # Standard Repeat Logic (no iterate_assessment at this level)
         pattern = structure.get('pattern', [])
         repeat = structure.get('repeat', 1)
-        # [MOD] Semantic Infinity
-        if repeat == -1: repeat = 10000
+        is_break_requested = structure.get('is_break_prompt', False)
+        
+        if repeat == -1: repeat = inf_limit
+
+        import uuid
+        my_uuid = str(uuid.uuid4())[:8] if is_break_requested else None
+        effective_loop_id = (parent_loop_id + "." if parent_loop_id else "") + my_uuid if my_uuid else parent_loop_id
         
         for r in range(repeat):
             set_num = r + 1
-            for idx, key in enumerate(pattern):
-                if key in self.question_library:
-                    # Create a COPY of the step data
-                    step = self.question_library[key].copy()
+            for idx, pat_item in enumerate(pattern):
+                if isinstance(pat_item, dict) and ('pattern' in pat_item or 'iterate_assessment' in pat_item):
+                     # Recursive call for nested patterns
+                     sub_steps = self.compile_process(pat_item, selection_map, substitution_map, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts)
+                     steps.extend(sub_steps)
+                     if len(steps) >= SAFE_MAX_STEPS:
+                          print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
+                          return steps[:SAFE_MAX_STEPS]
+                     continue
+
+                step = None
+                q_key = None
+                if isinstance(pat_item, str) and pat_item in self.question_library:
+                    q_key = pat_item
+                    step = self.question_library[pat_item].copy()
+                elif isinstance(pat_item, dict):
+                    q_key = pat_item.get('key')
+                    if q_key and q_key in self.question_library:
+                         step = self.question_library[q_key].copy()
+                         step.update({k:v for k,v in pat_item.items() if k != 'key'})
+                    else:
+                         step = pat_item.copy()
                     
-                    # Annotate Metadata (1-based index)
-                    step['set'] = str(set_num)
-                    step['question'] = str(idx + 1)
+                if step:
+                    # Substitution
+                    txt = step.get('text', "")
+                    for skey, sval in substitution_map.items():
+                         txt = txt.replace(f"[{skey}]", sval)
                     
+                    # [NEW] Dynamic [else] Substitution
+                    if q_key:
+                         usage_counts[q_key] = usage_counts.get(q_key, 0) + 1
+                         else_str = "else " if usage_counts[q_key] > 1 else ""
+                         txt = txt.replace("[else]", else_str)
+                         
+                    step['text'] = txt
+                    
+                    if effective_loop_id:
+                         step['loop_id'] = effective_loop_id
+                         if is_break_requested and idx == len(pattern) - 1:
+                              step['is_break_prompt'] = True
+                              
                     steps.append(step)
+                    if len(steps) >= SAFE_MAX_STEPS:
+                         print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
+                         return steps
                 else:
-                    print(f"Warning: Question key '{key}' not found in library.", flush=True)
+                    if isinstance(pat_item, str):
+                         print(f"Warning: Question key '{pat_item}' not found in library.", flush=True)
         return steps
 
     def list_processes(self):
@@ -277,9 +371,21 @@ class ProcessRunner:
             
         return None
 
+    def _check_mixer(self):
+        """Ensure mixer is initialized, attempt re-init if needed."""
+        if not pygame.mixer.get_init():
+            try:
+                pygame.mixer.init()
+                self.mixer_initialized = True
+            except:
+                self.mixer_initialized = False
+        else:
+            self.mixer_initialized = True
+        return self.mixer_initialized
+
     def play_audio_file(self, file_path):
         """Non-blocking playback request to pygame."""
-        if self.mixer_initialized and file_path:
+        if self._check_mixer() and file_path:
             try:
                 pygame.mixer.music.load(file_path)
                 pygame.mixer.music.play()
@@ -290,11 +396,11 @@ class ProcessRunner:
         return False
         
     def stop_audio(self):
-        if self.mixer_initialized:
+        if self._check_mixer():
             pygame.mixer.music.stop()
 
     def is_playing(self):
-        if self.mixer_initialized:
+        if self._check_mixer():
             return pygame.mixer.music.get_busy()
         return False
 
