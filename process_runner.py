@@ -441,12 +441,10 @@ class ProcessRunner:
             if self.audio_enabled:
                 file_to_play = self.prepare_step_audio(text, audio_file)
                 if file_to_play:
-                    print(f"DEBUG: Playing {file_to_play}...", flush=True)
                     self.play_audio_file(file_to_play)
                     
                     while self.is_playing():
                          pygame.time.Clock().tick(10)
-                    print("DEBUG: Playback finished.", flush=True)
 
             # [MOD] Add (Y/N) hint for break prompts in CLI. Add 'q' to quit.
             prompt = ">> Press Enter after answering (or 'q' to quit)..."
@@ -506,12 +504,8 @@ class TTSEngine:
         file_path = os.path.join(self.cache_dir, filename)
         
         # Check cache
-        if os.path.exists(file_path):
-            print(f"DEBUG: Using cached Edge-TTS [{voice_id}]: {file_path}", flush=True)
-            return file_path
             
         try:
-            print(f"DEBUG: Requesting Edge-TTS (Voice: {voice_id})...", flush=True)
             
             async def _generate():
                 communicate = edge_tts.Communicate(text, voice_id)
@@ -519,9 +513,6 @@ class TTSEngine:
             
             asyncio.run(_generate())
             
-            if os.path.exists(file_path):
-                print("DEBUG: Edge-TTS saved.", flush=True)
-                return file_path
         except Exception as e:
             print(f"Edge-TTS Request Failed: {e}. Falling back to gTTS...", flush=True)
             # Fallback to gTTS if Edge-TTS fails
