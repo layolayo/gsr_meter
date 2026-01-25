@@ -18,7 +18,7 @@ INNER_INFINITE_REPEAT_DEFAULT = 25
 SAFE_MAX_STEPS = 10000
 
 class ProcessRunner:
-    def __init__(self, processes_file):
+    def __init__(self, processes_file, audio_enabled=True):
         """Initialize the ProcessRunner with a JSON configuration file."""
         self.processes_file = processes_file
         self.assessments_file = "assessments.json"
@@ -32,14 +32,15 @@ class ProcessRunner:
         # Audio Settings
         self.voice_tld = "co.uk"    # Default accent
         self.voice_gender = "Female" # [NEW] Default gender
-        self.audio_enabled = True   # Global toggle for current session
+        self.audio_enabled = audio_enabled   # Global toggle for current session
         
         # Initialize pygame mixer
-        try:
-            pygame.mixer.init()
-            self.mixer_initialized = True
-        except Exception as e:
-            print(f"Warning: Audio initialization failed. Audio will not play. Error: {e}", flush=True)
+        if self.audio_enabled:
+            try:
+                pygame.mixer.init()
+                self.mixer_initialized = True
+            except Exception as e:
+                print(f"Warning: Audio initialization failed. Audio will not play. Error: {e}", flush=True)
             
         self.load_processes()
 
@@ -188,7 +189,7 @@ class ProcessRunner:
         if substitution_map is None:
             substitution_map = {}
         if usage_counts is None:
-             usage_counts = {} # Key: Question Key, Value: Count
+            usage_counts = {} # Key: Question Key, Value: Count
         
         # Determine effective "infinity"
         inf_limit = INFINITE_REPEAT_DEFAULT if depth == 0 else INNER_INFINITE_REPEAT_DEFAULT
@@ -196,88 +197,88 @@ class ProcessRunner:
         # Check for Assessment Iteration
         iter_key = structure.get('iterate_assessment')
         if iter_key and iter_key in self.assessments:
-             # [MOD] CHECK SELECTION MAP
-             assess_list = self.assessments[iter_key]
-             if selection_map and iter_key in selection_map:
-                  sel = selection_map[iter_key]
-                  if isinstance(sel, str): assess_list = [sel]
-                  elif isinstance(sel, list): assess_list = sel
-             
-             if structure.get('shuffle', False):
-                  import random
-                  random.shuffle(assess_list)
-             
-             pattern = structure.get('pattern', [])
-             repeat_count = structure.get('repeat', 1) 
-             is_break_requested = structure.get('is_break_prompt', False)
-             
-             if repeat_count == -1: repeat_count = inf_limit
-             
-             import uuid
-             my_uuid = str(uuid.uuid4())[:8] if is_break_requested else None
-             effective_loop_id = (parent_loop_id + "." if parent_loop_id else "") + my_uuid if my_uuid else parent_loop_id
-             
-             for r in range(repeat_count):
-                 total_pattern_steps = len(assess_list) * len(pattern)
-                 current_pattern_idx = 0
-                 for idx, item in enumerate(assess_list):
-                      # Update substitution map for this item
-                      local_substitution = substitution_map.copy()
-                      local_substitution[iter_key] = item
-                      
-                      for pat_item in pattern:
-                           current_pattern_idx += 1
-                           
-                           if isinstance(pat_item, dict) and ('pattern' in pat_item or 'iterate_assessment' in pat_item):
-                                # Recursive call for nested patterns
-                                sub_steps = self.compile_process(pat_item, selection_map, local_substitution, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts)
-                                steps.extend(sub_steps)
-                                if len(steps) >= SAFE_MAX_STEPS:
-                                     print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
-                                     return steps[:SAFE_MAX_STEPS]
-                                continue
+            # [MOD] CHECK SELECTION MAP
+            assess_list = self.assessments[iter_key]
+            if selection_map and iter_key in selection_map:
+                sel = selection_map[iter_key]
+                if isinstance(sel, str): assess_list = [sel]
+                elif isinstance(sel, list): assess_list = sel
+            
+            if structure.get('shuffle', False):
+                import random
+                random.shuffle(assess_list)
+            
+            pattern = structure.get('pattern', [])
+            repeat_count = structure.get('repeat', 1) 
+            is_break_requested = structure.get('is_break_prompt', False)
+            
+            if repeat_count == -1: repeat_count = inf_limit
+            
+            import uuid
+            my_uuid = str(uuid.uuid4())[:8] if is_break_requested else None
+            effective_loop_id = (parent_loop_id + "." if parent_loop_id else "") + my_uuid if my_uuid else parent_loop_id
+            
+            for r in range(repeat_count):
+                total_pattern_steps = len(assess_list) * len(pattern)
+                current_pattern_idx = 0
+                for idx, item in enumerate(assess_list):
+                    # Update substitution map for this item
+                    local_substitution = substitution_map.copy()
+                    local_substitution[iter_key] = item
+                    
+                    for pat_item in pattern:
+                        current_pattern_idx += 1
+                        
+                        if isinstance(pat_item, dict) and ('pattern' in pat_item or 'iterate_assessment' in pat_item):
+                            # Recursive call for nested patterns
+                            sub_steps = self.compile_process(pat_item, selection_map, local_substitution, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts)
+                            steps.extend(sub_steps)
+                            if len(steps) >= SAFE_MAX_STEPS:
+                                print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
+                                return steps[:SAFE_MAX_STEPS]
+                            continue
 
-                           # Resolve Key/Step
-                           base_step = None
-                           q_key = None
-                           if isinstance(pat_item, str) and pat_item in self.question_library:
-                                q_key = pat_item
-                                base_step = self.question_library[pat_item].copy()
-                           elif isinstance(pat_item, dict):
-                                q_key = pat_item.get('key')
-                                if q_key and q_key in self.question_library:
-                                     base_step = self.question_library[q_key].copy()
-                                     base_step.update({k:v for k,v in pat_item.items() if k != 'key'})
-                                else:
-                                     base_step = pat_item.copy()
-                           
-                           if base_step:
-                                # Perform Substitution
-                                txt = base_step.get('text', "")
-                                for skey, sval in local_substitution.items():
-                                     txt = txt.replace(f"[{skey}]", sval)
-                                # [NEW] Dynamic [else] Substitution
-                                if q_key:
-                                     usage_counts[q_key] = usage_counts.get(q_key, 0) + 1
-                                     else_str = "else " if usage_counts[q_key] > 1 else ""
-                                     txt = txt.replace("[else]", else_str)
-                                     
-                                base_step['text'] = txt
+                        # Resolve Key/Step
+                        base_step = None
+                        q_key = None
+                        if isinstance(pat_item, str) and pat_item in self.question_library:
+                            q_key = pat_item
+                            base_step = self.question_library[pat_item].copy()
+                        elif isinstance(pat_item, dict):
+                            q_key = pat_item.get('key')
+                            if q_key and q_key in self.question_library:
+                                base_step = self.question_library[q_key].copy()
+                                base_step.update({k:v for k,v in pat_item.items() if k != 'key'})
+                            else:
+                                base_step = pat_item.copy()
+                        
+                        if base_step:
+                            # Perform Substitution
+                            txt = base_step.get('text', "")
+                            for skey, sval in local_substitution.items():
+                                txt = txt.replace(f"[{skey}]", sval)
+                            # [NEW] Dynamic [else] Substitution (Fixed Spacing)
+                            if q_key:
+                                usage_counts[q_key] = usage_counts.get(q_key, 0) + 1
+                                else_str = "else " if usage_counts[q_key] > 1 else ""
+                                txt = txt.replace("[else]", else_str)
                                 
-                                # Metadata
-                                base_step['set'] = str(idx + 1)
-                                base_step['assessment_item'] = item
-                                
-                                if is_break_requested:
-                                     base_step['loop_id'] = effective_loop_id
-                                     if current_pattern_idx == total_pattern_steps:
-                                          base_step['is_break_prompt'] = True
-                                          
-                                steps.append(base_step)
-                                if len(steps) >= SAFE_MAX_STEPS:
-                                     print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
-                                     return steps
-             return steps
+                            base_step['text'] = txt
+                            
+                            # Metadata
+                            base_step['set'] = str(idx + 1)
+                            base_step['assessment_item'] = item
+                            
+                            if effective_loop_id:
+                                base_step['loop_id'] = effective_loop_id
+                                if is_break_requested and current_pattern_idx == total_pattern_steps:
+                                    base_step['is_break_prompt'] = True
+                                    
+                            steps.append(base_step)
+                            if len(steps) >= SAFE_MAX_STEPS:
+                                print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
+                                return steps
+            return steps
 
         # Standard Repeat Logic (no iterate_assessment at this level)
         pattern = structure.get('pattern', [])
@@ -291,16 +292,15 @@ class ProcessRunner:
         effective_loop_id = (parent_loop_id + "." if parent_loop_id else "") + my_uuid if my_uuid else parent_loop_id
         
         for r in range(repeat):
-            set_num = r + 1
             for idx, pat_item in enumerate(pattern):
                 if isinstance(pat_item, dict) and ('pattern' in pat_item or 'iterate_assessment' in pat_item):
-                     # Recursive call for nested patterns
-                     sub_steps = self.compile_process(pat_item, selection_map, substitution_map, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts)
-                     steps.extend(sub_steps)
-                     if len(steps) >= SAFE_MAX_STEPS:
-                          print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
-                          return steps[:SAFE_MAX_STEPS]
-                     continue
+                    # Recursive call for nested patterns
+                    sub_steps = self.compile_process(pat_item, selection_map, substitution_map, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts)
+                    steps.extend(sub_steps)
+                    if len(steps) >= SAFE_MAX_STEPS:
+                        print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
+                        return steps[:SAFE_MAX_STEPS]
+                    continue
 
                 step = None
                 q_key = None
@@ -310,37 +310,37 @@ class ProcessRunner:
                 elif isinstance(pat_item, dict):
                     q_key = pat_item.get('key')
                     if q_key and q_key in self.question_library:
-                         step = self.question_library[q_key].copy()
-                         step.update({k:v for k,v in pat_item.items() if k != 'key'})
+                        step = self.question_library[q_key].copy()
+                        step.update({k:v for k,v in pat_item.items() if k != 'key'})
                     else:
-                         step = pat_item.copy()
+                        step = pat_item.copy()
                     
                 if step:
                     # Substitution
                     txt = step.get('text', "")
                     for skey, sval in substitution_map.items():
-                         txt = txt.replace(f"[{skey}]", sval)
+                        txt = txt.replace(f"[{skey}]", sval)
                     
-                    # [NEW] Dynamic [else] Substitution
+                    # [NEW] Dynamic [else] Substitution (Fixed Spacing)
                     if q_key:
-                         usage_counts[q_key] = usage_counts.get(q_key, 0) + 1
-                         else_str = "else " if usage_counts[q_key] > 1 else ""
-                         txt = txt.replace("[else]", else_str)
-                         
+                        usage_counts[q_key] = usage_counts.get(q_key, 0) + 1
+                        else_str = "else " if usage_counts[q_key] > 1 else ""
+                        txt = txt.replace("[else]", else_str)
+                        
                     step['text'] = txt
                     
                     if effective_loop_id:
-                         step['loop_id'] = effective_loop_id
-                         if is_break_requested and idx == len(pattern) - 1:
-                              step['is_break_prompt'] = True
-                              
+                        step['loop_id'] = effective_loop_id
+                        if is_break_requested and idx == len(pattern) - 1:
+                            step['is_break_prompt'] = True
+                             
                     steps.append(step)
                     if len(steps) >= SAFE_MAX_STEPS:
-                         print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
-                         return steps
+                        print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
+                        return steps
                 else:
                     if isinstance(pat_item, str):
-                         print(f"Warning: Question key '{pat_item}' not found in library.", flush=True)
+                        print(f"Warning: Question key '{pat_item}' not found in library.", flush=True)
         return steps
 
     def list_processes(self):
@@ -404,37 +404,75 @@ class ProcessRunner:
             return pygame.mixer.music.get_busy()
         return False
 
-    def run_process_cli(self, process_name):
-        """Run the specified process (Blocking CLI Mode)."""
-        if process_name not in self.processes:
-            print(f"Process '{process_name}' not found.", flush=True)
-            return
+    def run_process_cli(self, process_name_or_steps):
+        """Runs a process in the command line interface."""
+        p_name = "Compiled Process"
+        if isinstance(process_name_or_steps, str):
+            if process_name_or_steps not in self.processes:
+                print(f"Process '{process_name_or_steps}' not found.", flush=True)
+                return
+            p_name = self.processes[process_name_or_steps]['name']
+            steps = self.processes[process_name_or_steps]['steps']
+        else:
+            steps = process_name_or_steps
 
-        process = self.processes[process_name]
-        print(f"\n--- Starting Process: {process['name']} ---", flush=True)
-        
-        for i, step in enumerate(process['steps']):
+        print(f"\n--- Starting Process: {p_name} ---", flush=True)
+        self.execute_steps_cli(steps)
+        print(f"\n--- Process {p_name} Complete ---", flush=True)
+
+        # [NEW] Always run Closing Questions
+        if self.closing_questions:
+             print(f"\n--- Closing Questions ---", flush=True)
+             self.execute_steps_cli(self.closing_questions)
+
+    def execute_steps_cli(self, steps):
+        """Internal helper to loop through steps in CLI. Returns True if user quit."""
+        step_idx = 0
+        while step_idx < len(steps):
+            step = steps[step_idx]
             text = step.get('text', '')
             audio_file = step.get('audio_file', '')
+            loop_id = step.get('loop_id', '')
             
             # Display text
-            print(f"\n[Step {i+1}] {text}", flush=True)
+            print(f"\n[Step {step_idx+1}] {text}", flush=True)
             
             # Play
-            file_to_play = self.prepare_step_audio(text, audio_file)
-            
-            if file_to_play:
-                print(f"DEBUG: Playing {file_to_play}...", flush=True)
-                self.play_audio_file(file_to_play)
-                
-                while self.is_playing():
-                     pygame.time.Clock().tick(10)
-                print("DEBUG: Playback finished.", flush=True)
+            if self.audio_enabled:
+                file_to_play = self.prepare_step_audio(text, audio_file)
+                if file_to_play:
+                    print(f"DEBUG: Playing {file_to_play}...", flush=True)
+                    self.play_audio_file(file_to_play)
+                    
+                    while self.is_playing():
+                         pygame.time.Clock().tick(10)
+                    print("DEBUG: Playback finished.", flush=True)
 
-            # Wait for user confirmation
-            input(">> Press Enter after answering...")
+            # [MOD] Add (Y/N) hint for break prompts in CLI. Add 'q' to quit.
+            prompt = ">> Press Enter after answering (or 'q' to quit)..."
+            if step.get('is_break_prompt', False):
+                prompt = ">> Press Enter after answering (or 'y' to skip, 'q' to quit)..."
             
-        print(f"\n--- Process {process['name']} Complete ---", flush=True)
+            u_input = input(prompt).strip().lower()
+            
+            if u_input == 'q':
+                print(f"\n--- User Terminated Early ---", flush=True)
+                return True
+
+            if u_input == 'y' and step.get('is_break_prompt', False) and loop_id:
+                # Hierarchical breaking in CLI
+                print(f"--- Break Detected in {loop_id} ---")
+                # Skip all steps with this loop_id prefix
+                step_idx += 1
+                while step_idx < len(steps):
+                    if steps[step_idx].get('loop_id', '').startswith(loop_id):
+                        step_idx += 1
+                    else:
+                        break
+                continue
+            
+            step_idx += 1
+        return False
 
 
 class TTSEngine:
@@ -498,7 +536,7 @@ class TTSEngine:
 if __name__ == "__main__":
     print("Starting Process Runner v2.1 (Debug)...", flush=True)
     # Simple CLI for testing
-    runner = ProcessRunner("processes.json")
+    runner = ProcessRunner("processes.json", audio_enabled=False)
     available = runner.list_processes()
     
     if not available:
@@ -517,6 +555,27 @@ if __name__ == "__main__":
             selected_name = choice
             
         if selected_name:
-            runner.run_process(selected_name)
+            # [NEW] CLI Interactive Selector
+            required = runner.get_required_assessments(selected_name)
+            selection_map = {}
+            
+            if required:
+                print(f"\nThis process requires items for: {', '.join(required)}")
+                for rkey in required:
+                    items = runner.assessments.get(rkey, [])
+                    if items:
+                        print(f"\nAvailable items for '{rkey}':")
+                        for idx, item in enumerate(items):
+                            print(f"  {idx}: {item}")
+                        
+                        isel = input(f"Select item index for '{rkey}' (or type one): ").strip()
+                        if isel.isdigit() and int(isel) < len(items):
+                            selection_map[rkey] = items[int(isel)]
+                        else:
+                            selection_map[rkey] = isel
+            
+            # Compile specific instance
+            steps = runner.compile_process_dynamic(selected_name, selection_map)
+            runner.run_process_cli(steps)
         else:
             print("Invalid selection.", flush=True)

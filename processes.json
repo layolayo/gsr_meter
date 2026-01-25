@@ -16,16 +16,16 @@
             "text": "And then what can happen?"
         },
         "aweirtwycx": {
-            "text": "And what [else] is reciprocal to what you could '[conditionalprocessing]'?"
+            "text": "And what [else]is reciprocal to what you could '[conditionalprocessing]'?"
         },
         "awmygft": {
             "text": "And want must you get from that?"
         },
         "awecyx": {
-            "text": "And what [else] could you '[conditionalprocessing]'?"
+            "text": "And what [else]could you '[conditionalprocessing]'?"
         },
         "awecynx": {
-            "text": "And what [else] could you not '[conditionalprocessing]'?"
+            "text": "And what [else]could you not '[conditionalprocessing]'?"
         },
         "awdykat": {
             "text": "And what do you know about that?"
@@ -40,10 +40,10 @@
             "text": "And what does that know about you?"
         },
         "awedykat": {
-            "text": "And what else do you know about that?"
+            "text": "And what [else]do you know about that?"
         },
         "awedtkay": {
-            "text": "And what else does that know about you?"
+            "text": "And what [else]does that know about you?"
         },
         "awitddfx": {
             "text": "And what is the dictionary definition for '[conditionalprocessing]'?"
@@ -79,16 +79,10 @@
             "text": "And where could that come from?"
         },
         "beenelse": {
-            "text": "And where else have you been?"
+            "text": "And where [else]have you been?"
         },
         "beelse": {
-            "text": "And where else might you be?"
-        },
-        "been": {
-            "text": "And where have you been?"
-        },
-        "be": {
-            "text": "And where might you be?"
+            "text": "And where [else]might you be?"
         },
         "sos": {
             "text": "Start of session",
@@ -113,18 +107,15 @@
                 {
                     "pattern": [
                         "now",
-                        "been",
-                        "compare",
-                        "be",
-                        "compare",
-                        "beenelse",
-                        "compare",
-                        "beelse",
-                        "compare",
-                        "beenelse",
-                        "compare",
-                        "beelse",
-                        "compare"
+                        {
+                            "pattern": [
+                                "beenelse",
+                                "compare",
+                                "beelse",
+                                "compare"
+                            ],
+                            "repeat": 3
+                        }
                     ],
                     "repeat": 6
                 },
@@ -256,23 +247,23 @@
                     "pattern": [
                         "awaynwx",
                         "awiydfx",
-                        "awitddfx"
-                    ]
-                },
-                {
-                    "iterate_assessment": "conditionalprocessing",
-                    "pattern": [
-                        "awecyx",
+                        "awitddfx",
                         {
                             "pattern": [
-                                "awewirtwycx",
-                                "acyxt"
+                                "awecyx",
+                                {
+                                    "pattern": [
+                                        "aweirtwycx",
+                                        "acyxt"
+                                    ],
+                                    "repeat": -1,
+                                    "is_break_prompt": true
+                                }
                             ],
                             "repeat": -1,
-                            "is_break_prompt": true
+                            "is_break_prompt": false
                         }
-                    ],
-                    "repeat": -1
+                    ]
                 }
             ]
         }
