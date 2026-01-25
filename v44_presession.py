@@ -2362,7 +2362,7 @@ if __name__ == "__main__":
                             evt = "BREATH_DROP"
                             
         elif phase == 1: # TRACKING DROP
-             txt = f"{prefix}: AND RELEASE..."
+             txt = f"{prefix}: HOLD AND RELEASE..."
              if curr_ta < min_ta:
                   new_min_ta = curr_ta
                   if is_breath: new_start_time = time.time() # Reset stability timer for Breath Only?
