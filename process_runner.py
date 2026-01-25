@@ -231,7 +231,7 @@ class ProcessRunner:
                         
                         if isinstance(pat_item, dict) and ('pattern' in pat_item or 'iterate_assessment' in pat_item):
                             # Recursive call for nested patterns
-                            sub_steps = self.compile_process(pat_item, selection_map, local_substitution, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts)
+                            sub_steps = self.compile_process(pat_item, selection_map, local_substitution, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts.copy())
                             steps.extend(sub_steps)
                             if len(steps) >= SAFE_MAX_STEPS:
                                 print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
@@ -295,7 +295,7 @@ class ProcessRunner:
             for idx, pat_item in enumerate(pattern):
                 if isinstance(pat_item, dict) and ('pattern' in pat_item or 'iterate_assessment' in pat_item):
                     # Recursive call for nested patterns
-                    sub_steps = self.compile_process(pat_item, selection_map, substitution_map, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts)
+                    sub_steps = self.compile_process(pat_item, selection_map, substitution_map, depth=depth+1, parent_loop_id=effective_loop_id, usage_counts=usage_counts.copy())
                     steps.extend(sub_steps)
                     if len(steps) >= SAFE_MAX_STEPS:
                         print(f"Warning: Process exceeded {SAFE_MAX_STEPS} steps. Capping compilation.", flush=True)
